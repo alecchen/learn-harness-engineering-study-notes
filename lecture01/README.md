@@ -19,10 +19,44 @@ Modern SWE-bench runs enforce temporal holdout.
 
 SWE-bench is a concrete example of a *harness* — a controlled evaluation environment (Docker + test suite). The course's concept of a harness is exactly this: the infrastructure that makes evaluation trustworthy.
 
-## Exercises
+---
 
-Three approaches to the same brief ("build a 2D retro game maker"):
+## 2D Retro Game Maker — Three Approaches
 
-- `superpowers-2d-retro-game-maker/` — Harness Superpowers walkthrough
-- `grill-me-2d-retro-game-maker/` — grilled by an AI agent
-- `solo-2d-retro-game-maker/` — built entirely on my own
+Inspired by [Anthropic's blog post on harness design for long-running apps](https://www.anthropic.com/engineering/harness-design-long-running-apps), which describes a 2D retro game harness test, I ran a similar experiment using Claude with DeepSeek-v4-flash across three harness approaches:
+
+### 1. Solo (no harness)
+
+[`solo-2d-retro-game-maker/`](solo-2d-retro-game-maker/) — [`index.html`](solo-2d-retro-game-maker/index.html) ([spec](solo-2d-retro-game-maker/README.md))
+
+A single prompt to Claude asking it to build the game in one shot. No scaffolding, no iterative feedback, no structured evaluation. The model produces what it produces in a single pass — whatever quality emerges is whatever the model guessed the user wanted.
+
+**Result:** A basic game maker, but limited by the lack of iteration — the model had to infer intent with no chance to course-correct.
+
+### 2. Grill-me (skill-based harness)
+
+[`grill-me-2d-retro-game-maker/`](grill-me-2d-retro-game-maker/) — [`game.html`](grill-me-2d-retro-game-maker/game.html) ([session record](grill-me-2d-retro-game-maker/docs/session-grill-build-record.md))
+
+Uses the [`/grill-me` skill](https://github.com/mattpocock/skills) as the harness. The skill defines a structured prompt sequence: it grills the user on requirements before writing code, validates the output against those requirements, and iterates on failure. The harness is the skill itself — it enforces a protocol the model follows.
+
+**Result:** More structured output than solo mode. The grilling surface forced clarification of requirements before generation, catching ambiguity early. Still limited: the skill provides process but no automated evaluation (no test suite, no scoring).
+
+### 3. Superpowers (framework-based harness)
+
+[`superpowers-2d-retro-game-maker/`](superpowers-2d-retro-game-maker/) — [`index.html`](superpowers-2d-retro-game-maker/index.html) ([session record](superpowers-2d-retro-game-maker/session-record.md), [spec](superpowers-2d-retro-game-maker/docs/superpowers/specs/2026-07-30-2d-retro-game-maker-design.md), [plan](superpowers-2d-retro-game-maker/docs/superpowers/plans/2026-07-30-2d-retro-game-maker.md), [8 task reports](superpowers-2d-retro-game-maker/.superpowers/sdd/2d-retro-game-maker/))
+
+Uses the [Superpowers framework](https://github.com/obra/superpowers) as the harness. Superpowers provides a complete agentic workflow: specification-driven development (SDD), structured task decomposition, planning, execution, review, and iteration loops. The harness orchestrates multiple model calls — one to plan, one to write, one to review, one to fix — each stage validating the output of the prior one.
+
+**Result:** The most comprehensive output. The framework's review-and-fix loop caught issues the other approaches missed. But heavier — more tokens, more rounds, more to configure. The harness itself becomes the product.
+
+---
+
+### Summary
+
+| Approach | Harness | Iteration | Validation | Token cost |
+|----------|---------|-----------|------------|------------|
+| Solo | None | None | None | Lowest |
+| Grill-me | Skill protocol | Requirements feedback loop | Implicit (skill checks) | Low |
+| Superpowers | Full agentic framework | Plan → Code → Review → Fix | Structured (reviews, test reports) | High |
+
+The spectrum shows a clear tradeoff: more harness = more reliable output = more tokens. The right choice depends on whether you need a quick sketch (solo), a solid first pass (grill-me), or production-quality code (superpowers).
