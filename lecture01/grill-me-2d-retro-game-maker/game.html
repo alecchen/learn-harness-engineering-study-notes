@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>RETRO GAME MAKER</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;color:#e0e0e0;font-family:'Courier New',monospace;display:flex;justify-content:center;padding:20px;min-height:100vh}
+#app{display:flex;flex-direction:column;align-items:center;gap:12px;max-width:700px}
+#header{text-align:center}
+#header h1{font-size:18px;letter-spacing:4px;color:#ffcc00;text-shadow:2px 2px 0 #8b6914;margin-bottom:8px}
+#toolbar{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-bottom:4px}
+.tool-btn{width:40px;height:40px;border:2px solid #444;background:#2a2a3e;cursor:pointer;font-size:11px;color:#ccc;display:flex;align-items:center;justify-content:center;position:relative;border-radius:2px}
+.tool-btn.active{border-color:#ffcc00;background:#3a3a4e}
+.tool-btn:hover{border-color:#888}
+.tool-btn .preview{display:inline-block;width:20px;height:20px;border:1px solid rgba(255,255,255,0.2);image-rendering:pixelated}
+#toggle-btn{background:#44cc44;color:#000;border:none;padding:8px 24px;font-family:'Courier New',monospace;font-size:16px;font-weight:bold;cursor:pointer;border-radius:2px;letter-spacing:2px;margin-top:4px}
+#toggle-btn.playing{background:#cc4444}
+#canvas-wrap{position:relative;border:2px solid #444;line-height:0;background:#000}
+canvas{display:block;width:960px;height:480px;image-rendering:pixelated;cursor:crosshair}
+canvas.play{cursor:default}
+#footer{display:flex;justify-content:space-between;width:100%;font-size:12px;color:#888;padding:4px 8px;border-top:1px solid #333}
+#footer .highlight{color:#ffcc00}
+@media(max-width:1000px){canvas{width:100% !important;height:auto !important}}
+</style>
+</head>
+<body>
+<div id="app">
+<div id="header">
+<h1>RETRO GAME MAKER</h1>
+<div id="toolbar"></div>
+<button id="toggle-btn">PLAY</button>
+</div>
+<div id="canvas-wrap">
+<canvas id="gc" width="480" height="240"></canvas>
+</div>
+<div id="footer">
+<span id="status-left">EDIT MODE</span>
+<span id="status-right">Level: 1</span>
+</div>
+</div>
+<script>
+(function(){
+'use strict';
+
+// ==================== CONSTANTS ====================
+const T = 16; // tile size
+const GW = 30;
+const GH = 15;
+const CW = GW * T; // 480
+const CH = GH * T; // 240
+
+const TILE = {
+  EMPTY:0, GROUND:1, BRICK:2, QUESTION:3,
+  PIPE:4, PLAYER_SPAWN:5, ENEMY_SPAWN:6, GOAL:7
+};
+
+const TILE_LABELS = {
+  1:'GND',2:'BRK',3:'?',4:'PIP',5:'P',6:'E',7:'GOAL'
+};
+
+const SOLID = new Set([TILE.GROUND, TILE.BRICK, TILE.QUESTION, TILE.PIPE]);
+
+// Tile rendering: simple pixel patterns (16x16 represented as strings)
+// Each char = color index: 0=empty/skip, 1-4=palette
+const TILE_ART = {};
+
+// Ground: brown brick pattern
+TILE_ART[TILE.GROUND] = [
+  '1111111111111111',
+  '1111111111111111',
+  '1111122222111111',
+  '1111122222111111',
+  '1111111111111111',
+  '1111111111111111',
+  '2222111111222211',
+  '2222111111222211',
+  '1111111111111111',
+  '1111111111111111',
+  '1111122222111111',
+  '1111122222111111',
+  '1111111111111111',
+  '1111111111111111',
+  '2222111111222211',
+  '2222111111222211',
+].map(r=>r.split('').map(Number));
+
+// Brick: same but lighter
+TILE_ART[TILE.BRICK] = [
+  '2222222222222222',
+  '2222222222222222',
+  '2222222222222222',
+  '2222000022220000',
+  '2222000022220000',
+  '2222222222222222',
+  '2222222222222222',
+  '0000222200002222',
+  '0000222200002222',
+  '2222222222222222',
+  '2222222222222222',
+  '2222000022220000',
+  '2222000022220000',
+  '2222222222222222',
+  '2222222222222222',
+  '0000222200002222',
+  '0000222200002222',
+].map(r=>r.split('').map(Number));
+
+// Question block
+TILE_ART[TILE.QUESTION] = [
+  '2222222222222222',
+  '2222222222222222',
+  '2221111111112222',
+  '2211111111111122',
+  '221111?111111122',
+  '2211111111111122',
+  '221111?111111122',
+  '2211111111111122',
+  '2211111111111122',
+  '221111?111111122',
+  '2211111111111122',
+  '221111?111111122',
+  '2211111111111122',
+  '2221111111112222',
+  '2222222222222222',
+  '2222222222222222',
+].map(r=>r.split('').map(c=>c==='?'?3:Number(c)));
+
+// Pipe
+TILE_ART[TILE.PIPE] = [
+  '3333333333333333',
+  '3344444444444433',
+  '3344444444444433',
+  '3344444444444433',
+  '3333333333333333',
+  '3333333333333333',
+  '3344444444444433',
+  '3344444444444433',
+  '3344444444444433',
+  '3333333333333333',
+  '3333333333333333',
+  '3344444444444433',
+  '3344444444444433',
+  '3344444444444433',
+  '3333333333333333',
+  '3333333333333333',
+].map(r=>r.split('').map(Number));
+
+// Goal flag
+TILE_ART[TILE.GOAL] = [
+  '0000000000000000',
+  '0000000000000000',
+  '0055555000000000',
+  '0055555000000000',
+  '0055555000000000',
+  '0055555000000000',
+  '0000000000000000',
+  '0000000000000000',
+  '0000000003330000',
+  '0000000003330000',
+  '0000000003330000',
+  '0000000003330000',
+  '0000000003330000',
+  '0000000003330000',
+  '0000000003330000',
+  '0003333333330000',
+].map(r=>r.split('').map(Number));
+
+// Palette: [name, r, g, b]
+const PAL = {
+  EMPTY:'#5c94fc', // sky blue
+  1:'#c84c0c', // ground brown
+  2:'#e09850', // brick/block tan
+  3:'#fcd8a8', // highlight
+  4:'#00a800', // pipe green
+  5:'#f8b800', // goal gold
+};
+const PAL_ENEMY = {1:'#8b4513',2:'#d2691e',3:'#000',4:'#a0522d'};
+
+// Player sprite (16x16): 0=transparent, 1=red, 2=skin, 3=blue, 4=brown
+const PLAYER_SPRITE = [
+  [0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0],
+  [0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0],
+  [0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0],
+  [0,0,0,0,2,2,2,2,2,2,0,0,0,0,0,0],
+  [0,0,0,2,2,2,2,2,2,2,2,0,0,0,0,0],
+  [0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0],
+  [0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0],
+  [0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
+  [0,0,0,0,3,3,3,3,3,3,0,0,0,0,0,0],
+  [0,0,0,3,3,3,3,3,3,3,3,3,0,0,0,0],
+  [0,0,3,3,3,3,3,3,3,3,3,3,0,0,0,0],
+  [0,0,0,0,4,4,0,0,4,4,0,0,0,0,0,0],
+  [0,0,0,4,4,4,0,0,4,4,4,0,0,0,0,0],
+  [0,0,0,0,4,4,0,0,4,4,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+];
+const PLAYER_PAL = ['','#e04040','#ffc080','#4040e0','#8b4513'];
+
+// Big player sprite (16x24): 0=transparent, 1=red, 2=skin, 3=blue, 4=brown
+const BIG_SPRITE = [
+  [0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0],
+  [0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0],
+  [0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0],
+  [0,0,0,0,2,2,2,2,2,2,0,0,0,0,0,0],
+  [0,0,0,2,2,0,2,2,2,2,2,2,0,0,0,0],
+  [0,0,0,2,2,2,2,2,2,2,2,2,0,0,0,0],
+  [0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0],
+  [0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0],
+  [0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
+  [0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
+  [0,0,0,0,3,3,3,3,3,3,0,0,0,0,0,0],
+  [0,0,0,3,3,3,3,3,3,3,3,0,0,0,0,0],
+  [0,0,3,3,3,3,3,3,3,3,3,3,0,0,0,0],
+  [0,0,3,3,3,3,3,3,3,3,3,3,0,0,0,0],
+  [0,0,0,3,3,3,3,3,3,3,3,0,0,0,0,0],
+  [0,0,0,0,3,3,3,3,3,3,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,4,4,4,4,4,4,4,4,0,0,0,0,0],
+  [0,0,0,0,0,4,4,4,4,0,0,0,0,0,0,0],
+  [0,0,0,0,4,4,0,0,4,4,0,0,0,0,0,0],
+  [0,0,0,4,4,4,0,0,4,4,4,0,0,0,0,0],
+  [0,0,0,0,4,4,0,0,4,4,0,0,0,0,0,0],
+];
+
+// ==================== STATE ====================
+let mode = 'edit'; // 'edit' | 'play'
+let selectedTool = TILE.GROUND;
+let level = [];
+let player = {x:64,y:64,w:12,h:16,vx:0,vy:0,facing:1,jumping:false,jumpHold:false,dead:false,grounded:false,big:false,invincible:0};
+let enemies = [];
+let mushrooms = [];
+let blockHit = [];
+let spawnPoint = {x:64,y:64};
+let flagGoal = false;
+let winTimer = 0;
+let deathTimer = 0;
+const GRAVITY = 0.6;
+const JUMP = -9;
+const SPEED = 3;
+const MAX_FALL = 12;
+
+// Input
+const keys = {};
+
+// ==================== INIT ====================
+function initLevel() {
+  level = [];
+  for (let y = 0; y < GH; y++) {
+    level[y] = [];
+    for (let x = 0; x < GW; x++) {
+      level[y][x] = TILE.EMPTY;
+    }
+  }
+  // Default ground
+  for (let x = 0; x < GW; x++) {
+    level[13][x] = TILE.GROUND;
+    level[14][x] = TILE.GROUND;
+  }
+  // Default player spawn
+  level[12][2] = TILE.PLAYER_SPAWN;
+  spawnPoint = {x: 2*T + 2, y: 12*T};
+  // Default enemy
+  level[12][10] = TILE.ENEMY_SPAWN;
+  // Default question block
+  level[8][6] = TILE.QUESTION;
+  // Default goal
+  level[12][GW-4] = TILE.GOAL;
+  // Reset block hit states
+  blockHit = [];
+  for (let y = 0; y < GH; y++) {
+    blockHit[y] = [];
+    for (let x = 0; x < GW; x++) {
+      blockHit[y][x] = false;
+    }
+  }
+}
+
+function resetGame() {
+  player.x = spawnPoint.x;
+  player.y = spawnPoint.y;
+  player.vx = 0;
+  player.vy = 0;
+  player.dead = false;
+  player.jumping = false;
+  player.jumpHold = false;
+  player.grounded = false;
+  player.big = false;
+  player.invincible = 0;
+  player.w = 12;
+  player.h = 16;
+  flagGoal = false;
+  winTimer = 0;
+  deathTimer = 0;
+  enemies = [];
+  mushrooms = [];
+  // Scan level for enemy spawns
+  for (let y = 0; y < GH; y++) {
+    for (let x = 0; x < GW; x++) {
+      if (level[y][x] === TILE.ENEMY_SPAWN) {
+        enemies.push({x: x*T + 2, y: (y+1)*T - 14, w:14, h:14, vx:-1, dir:-1, alive:true, spawnX: x*T});
+      }
+    }
+  }
+}
+
+// ==================== TOOLBAR ====================
+const canvas = document.getElementById('gc');
+const ctx = canvas.getContext('2d');
+const toolbar = document.getElementById('toolbar');
+const toggleBtn = document.getElementById('toggle-btn');
+const statusLeft = document.getElementById('status-left');
+const statusRight = document.getElementById('status-right');
+
+const TOOLS = [
+  {id:TILE.EMPTY, label:'X', icon:'eraser'},
+  {id:TILE.GROUND, label:'G', icon:'ground'},
+  {id:TILE.BRICK, label:'B', icon:'brick'},
+  {id:TILE.QUESTION, label:'?', icon:'qblock'},
+  {id:TILE.PIPE, label:'P', icon:'pipe'},
+  {id:TILE.PLAYER_SPAWN, label:'S', icon:'spawn'},
+  {id:TILE.ENEMY_SPAWN, label:'E', icon:'enemy'},
+  {id:TILE.GOAL, label:'F', icon:'goal'},
+];
+
+function buildToolbar() {
+  toolbar.innerHTML = '';
+  for (const t of TOOLS) {
+    const btn = document.createElement('button');
+    btn.className = 'tool-btn' + (selectedTool === t.id ? ' active' : '');
+    btn.dataset.tool = t.id;
+    // Mini preview
+    if (t.id === TILE.EMPTY) {
+      btn.textContent = 'X';
+    } else {
+      const mini = document.createElement('canvas');
+      mini.width = 16;
+      mini.height = 16;
+      mini.className = 'preview';
+      const mctx = mini.getContext('2d');
+      drawTileOnContext(mctx, t.id, 0, 0, 16);
+      btn.appendChild(mini);
+    }
+    btn.title = t.label;
+    btn.addEventListener('click', () => {
+      selectedTool = t.id;
+      document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+    toolbar.appendChild(btn);
+  }
+}
+
+// ==================== DRAWING HELPERS ====================
+function drawTileOnContext(c, tileId, dx, dy, sz) {
+  if (tileId === TILE.EMPTY) {
+    c.fillStyle = PAL.EMPTY;
+    c.fillRect(dx, dy, sz, sz);
+    return;
+  }
+  const art = TILE_ART[tileId];
+  if (!art) {
+    c.fillStyle = '#f0f';
+    c.fillRect(dx, dy, sz, sz);
+    return;
+  }
+  const scale = sz / T;
+  for (let py = 0; py < T; py++) {
+    for (let px = 0; px < T; px++) {
+      const ci = art[py][px];
+      if (ci === 0) {
+        c.fillStyle = PAL.EMPTY;
+      } else {
+        const key = tileId === TILE.GOAL && ci === 5 ? 5 :
+                    tileId === TILE.PIPE && ci === 4 ? 4 :
+                    tileId === TILE.QUESTION && ci === 3 ? 3 : ci;
+        c.fillStyle = PAL[key] || PAL[1];
+      }
+      c.fillRect(dx + px*scale, dy + py*scale, scale, scale);
+    }
+  }
+  // Special: question block "?" overlay
+  if (tileId === TILE.QUESTION) {
+    c.fillStyle = '#fff';
+    c.font = 'bold ' + Math.round(sz*0.6) + 'px monospace';
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillText('?', dx + sz/2, dy + sz/2 + 1);
+  }
+  // Pipe lip
+  if (tileId === TILE.PIPE) {
+    c.fillStyle = '#008000';
+    c.fillRect(dx, dy, sz, 3*scale);
+    c.fillRect(dx, dy, 3*scale, sz);
+    c.fillRect(dx + sz - 3*scale, dy, 3*scale, sz);
+  }
+}
+
+function getTile(x, y) {
+  if (x < 0 || x >= GW || y < 0 || y >= GH) return TILE.EMPTY;
+  return level[y][x];
+}
+
+function isSolid(id) { return SOLID.has(id); }
+
+function drawLevel() {
+  for (let y = 0; y < GH; y++) {
+    for (let x = 0; x < GW; x++) {
+      const tile = level[y][x];
+      if (tile === TILE.QUESTION && blockHit[y][x]) {
+        // Draw empty (used) question block
+        const c = ctx;
+        c.fillStyle = '#8a6e3a';
+        c.fillRect(x*T, y*T, T, T);
+        c.strokeStyle = '#5c4a24';
+        c.lineWidth = 1;
+        c.strokeRect(x*T+1, y*T+1, T-2, T-2);
+      } else {
+        drawTileOnContext(ctx, tile, x*T, y*T, T);
+      }
+    }
+  }
+  // Grid lines in edit mode
+  if (mode === 'edit') {
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 0.5;
+    for (let x = 0; x <= GW; x++) {
+      ctx.beginPath(); ctx.moveTo(x*T, 0); ctx.lineTo(x*T, CH); ctx.stroke();
+    }
+    for (let y = 0; y <= GH; y++) {
+      ctx.beginPath(); ctx.moveTo(0, y*T); ctx.lineTo(CW, y*T); ctx.stroke();
+    }
+  }
+}
+
+// ==================== PLAYER DRAWING ====================
+function drawPixelSprite(spr, pal, dx, dy, w, h) {
+  const scx = w / spr[0].length;
+  const scy = h / spr.length;
+  for (let py = 0; py < spr.length; py++) {
+    for (let px = 0; px < spr[0].length; px++) {
+      const ci = spr[py][px];
+      if (ci === 0) continue;
+      ctx.fillStyle = pal[ci];
+      ctx.fillRect(dx + px*scx, dy + py*scy, Math.ceil(scx), Math.ceil(scy));
+    }
+  }
+}
+
+function drawPlayer() {
+  if (player.dead) return;
+  // Blink during invincibility
+  if (player.invincible > 0 && Math.floor(player.invincible / 4) % 2 === 0) return;
+  const f = player.facing;
+  const spr = player.big ? BIG_SPRITE : PLAYER_SPRITE;
+  ctx.save();
+  if (f < 0) {
+    ctx.translate(Math.floor(player.x) + player.w, 0);
+    ctx.scale(-1, 1);
+    drawPixelSprite(spr, PLAYER_PAL, 0, Math.floor(player.y), player.w, player.h);
+  } else {
+    drawPixelSprite(spr, PLAYER_PAL, Math.floor(player.x), Math.floor(player.y), player.w, player.h);
+  }
+  ctx.restore();
+}
+
+function drawMushroom(m) {
+  if (!m.alive) return;
+  const mx = Math.floor(m.x);
+  const my = Math.floor(m.y);
+  // Mushroom cap
+  ctx.fillStyle = '#e04040';
+  ctx.beginPath();
+  ctx.arc(mx + m.w/2, my + 5, 7, Math.PI, 0);
+  ctx.fill();
+  ctx.fillRect(mx, my + 5, m.w, 4);
+  // Stem
+  ctx.fillStyle = '#f0d8a0';
+  ctx.fillRect(mx + 3, my + 8, 8, 6);
+  // Eyes
+  ctx.fillStyle = '#000';
+  ctx.fillRect(mx + 3, my + 7, 2, 3);
+  ctx.fillRect(mx + 9, my + 7, 2, 3);
+}
+
+function drawEnemy(e) {
+  if (!e.alive) return;
+  const ex = Math.floor(e.x);
+  const ey = Math.floor(e.y);
+  // Simple brown goomba
+  ctx.fillStyle = '#8b4513';
+  ctx.fillRect(ex, ey, e.w, e.h);
+  ctx.fillStyle = '#d2691e';
+  ctx.fillRect(ex+2, ey+2, e.w-4, 4);
+  // Eyes
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(ex+2, ey+3, 3, 3);
+  ctx.fillRect(ex+e.w-5, ey+3, 3, 3);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(ex+3, ey+4, 2, 2);
+  ctx.fillRect(ex+e.w-4, ey+4, 2, 2);
+  // Feet
+  ctx.fillStyle = '#000';
+  ctx.fillRect(ex, ey+e.h-4, 5, 4);
+  ctx.fillRect(ex+e.w-5, ey+e.h-4, 5, 4);
+}
+
+// ==================== PHYSICS ====================
+function tileAt(x, y) {
+  const tx = Math.floor(x / T);
+  const ty = Math.floor(y / T);
+  return {tx, ty, tile: getTile(tx, ty)};
+}
+
+function solidAt(x, y) {
+  const t = tileAt(x, y);
+  return isSolid(t.tile);
+}
+
+function collides(a) {
+  // Check if entity a (with x,y,w,h) overlaps any solid tile
+  const l = Math.floor(a.x / T);
+  const r = Math.floor((a.x + a.w - 1) / T);
+  const t = Math.floor(a.y / T);
+  const b = Math.floor((a.y + a.h - 1) / T);
+  for (let ty = t; ty <= b; ty++) {
+    for (let tx = l; tx <= r; tx++) {
+      if (isSolid(getTile(tx, ty))) return true;
+    }
+  }
+  return false;
+}
+
+function updatePhysics(dt) {
+  if (player.dead) return;
+  if (flagGoal) return;
+
+  // Horizontal
+  if (keys['ArrowLeft'] || keys['KeyA']) { player.vx = -SPEED; player.facing = -1; }
+  else if (keys['ArrowRight'] || keys['KeyD']) { player.vx = SPEED; player.facing = 1; }
+  else { player.vx *= 0.7; if (Math.abs(player.vx) < 0.1) player.vx = 0; }
+
+  // Jump — only when grounded
+  if ((keys['ArrowUp'] || keys['KeyW'] || keys['Space']) && player.grounded && !player.jumpHold) {
+    player.vy = JUMP;
+    player.jumpHold = true;
+    player.grounded = false;
+  }
+  if (!(keys['ArrowUp'] || keys['KeyW'] || keys['Space'])) {
+    player.jumpHold = false;
+  }
+
+  // Gravity
+  player.vy += GRAVITY;
+  if (player.vy > MAX_FALL) player.vy = MAX_FALL;
+
+  // Move X
+  player.x += player.vx;
+  if (collides(player)) {
+    if (player.vx > 0) player.x = Math.floor(player.x / T) * T + T - player.w - 0.01;
+    else player.x = Math.ceil(player.x / T) * T + 0.01;
+    player.vx = 0;
+  }
+
+  // Move Y
+  player.y += player.vy;
+  let grounded = false;
+
+  // Head collision (moving up) — only check top row, not feet
+  if (player.vy < 0) {
+    const headRow = Math.floor(player.y / T);
+    const hl = Math.floor(player.x / T);
+    const hr = Math.floor((player.x + player.w - 1) / T);
+    for (let tx = hl; tx <= hr; tx++) {
+      if (isSolid(getTile(tx, headRow))) {
+        player.y = Math.ceil(player.y / T) * T + 0.01;
+        player.vy = 0;
+        for (let tx2 = hl; tx2 <= hr; tx2++) {
+          if (getTile(tx2, headRow) === TILE.QUESTION && !blockHit[headRow][tx2]) {
+            blockHit[headRow][tx2] = true;
+            spawnMushroom(tx2, headRow);
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  // Ground collision — check row below feet, then feet row
+  if (player.vy >= 0) {
+    const gl = Math.floor(player.x / T);
+    const gr = Math.floor((player.x + player.w - 1) / T);
+    const belowRow = Math.floor((player.y + player.h) / T);
+    const feetRow = Math.floor((player.y + player.h - 1) / T);
+    let groundRow = -1;
+    for (let tx = gl; tx <= gr; tx++) {
+      if (isSolid(getTile(tx, belowRow))) { groundRow = belowRow; break; }
+    }
+    if (groundRow === -1) {
+      for (let tx = gl; tx <= gr; tx++) {
+        if (isSolid(getTile(tx, feetRow))) { groundRow = feetRow; break; }
+      }
+    }
+    if (groundRow !== -1) {
+      player.y = groundRow * T - player.h;
+      player.vy = 0;
+      grounded = true;
+    }
+  }
+  player.grounded = grounded;
+
+  // Invincibility timer
+  if (player.invincible > 0) player.invincible--;
+
+  // Check fall death
+  if (player.y > GH * T + 50) {
+    player.dead = true;
+    deathTimer = 60;
+  }
+
+  // Check goal
+  const pcx = player.x + player.w/2;
+  const pcy = player.y + player.h/2;
+  const gt = tileAt(pcx, pcy);
+  if (gt.tile === TILE.GOAL) {
+    flagGoal = true;
+    winTimer = 120;
+  }
+
+  // Update mushrooms
+  for (const m of mushrooms) {
+    if (!m.alive) continue;
+    if (m.rising) {
+      m.y -= 1.5;
+      m.riseCount++;
+      if (m.riseCount >= 24) {
+        m.rising = false;
+        m.ready = true;
+        m.y = Math.floor(m.y / T) * T;
+        m.vx = 2;
+      }
+    } else {
+      m.vy += GRAVITY;
+      if (m.vy > MAX_FALL) m.vy = MAX_FALL;
+      m.x += m.vx;
+      // Wall bounce
+      const mBodyY = m.y + m.h * 0.4;
+      const mFrontX = m.vx > 0 ? m.x + m.w - 0.01 : m.x;
+      const mTx = Math.floor(mFrontX / T);
+      const mTy = Math.floor(mBodyY / T);
+      if (isSolid(getTile(mTx, mTy))) m.vx *= -1;
+      // Ground collision
+      m.y += m.vy;
+      if (m.vy >= 0) {
+        const mbY = m.y + m.h;
+        const mRow = Math.floor(mbY / T);
+        const mL = Math.floor(m.x / T);
+        const mR = Math.floor((m.x + m.w - 1) / T);
+        let landed = false;
+        for (let tx = mL; tx <= mR; tx++) {
+          if (isSolid(getTile(tx, mRow))) { landed = true; break; }
+        }
+        if (landed) {
+          m.y = mRow * T - m.h;
+          m.vy = 0;
+        }
+      }
+    }
+    // Player-mushroom collision
+    if (player.dead || !m.ready) continue;
+    if (!m.alive) continue;
+    if (m.x < player.x + player.w && m.x + m.w > player.x &&
+        m.y < player.y + player.h && m.y + m.h > player.y) {
+      m.alive = false;
+      if (!player.big) {
+        player.big = true;
+        player.w = 14;
+        player.h = 24;
+        player.y -= 8;
+        player.invincible = 0;
+      }
+    }
+  }
+
+  // Enemies
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    e.x += e.vx;
+    const eBodyY = e.y + e.h * 0.4;
+    const eFrontX = e.dir < 0 ? e.x : e.x + e.w - 0.01;
+    const eTx = Math.floor(eFrontX / T);
+    const eTy = Math.floor(eBodyY / T);
+    if (isSolid(getTile(eTx, eTy))) {
+      e.vx *= -1;
+      e.dir *= -1;
+      e.x += e.vx;
+    }
+    const eFootY = e.y + e.h - 1;
+    const eTx2 = e.dir < 0 ? Math.floor((e.x - 2) / T) : Math.floor((e.x + e.w + 1) / T);
+    const eTy2 = Math.floor((eFootY + 1) / T);
+    if (!isSolid(getTile(eTx2, eTy2))) {
+      e.vx *= -1;
+      e.dir *= -1;
+    }
+
+    // Player-enemy collision
+    if (player.dead || player.invincible > 0) continue;
+    if (e.x < player.x + player.w && e.x + e.w > player.x &&
+        e.y < player.y + player.h && e.y + e.h > player.y) {
+      if (player.vy > 0 && player.y + player.h - e.y < 14) {
+        e.alive = false;
+        player.vy = -7;
+      } else if (player.big) {
+        player.big = false;
+        player.w = 12;
+        player.h = 16;
+        player.y += 8;
+        player.invincible = 90;
+        player.vy = -3;
+      } else {
+        player.dead = true;
+        deathTimer = 60;
+        player.vy = -6;
+        player.vx = 0;
+      }
+    }
+  }
+}
+
+function spawnMushroom(tx, ty) {
+  mushrooms.push({
+    x: tx * T + 2,
+    y: ty * T,
+    w: 14, h: 14,
+    vx: 0, vy: 0,
+    rising: true,
+    ready: false,
+    riseCount: 0,
+    alive: true,
+  });
+}
+
+// ==================== RENDER ====================
+function render() {
+  ctx.fillStyle = PAL.EMPTY;
+  ctx.fillRect(0, 0, CW, CH);
+
+  drawLevel();
+
+  if (mode === 'play') {
+    // Draw spawn point indicator
+    const sx = Math.floor(spawnPoint.x / T);
+    const sy = Math.floor(spawnPoint.y / T);
+    // Draw enemies
+    for (const e of enemies) drawEnemy(e);
+    // Draw mushrooms
+    for (const m of mushrooms) drawMushroom(m);
+    // Draw player
+    if (!player.dead || deathTimer % 6 < 3) drawPlayer();
+
+    // Win message
+    if (flagGoal) {
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(0, CH/2-24, CW, 48);
+      ctx.fillStyle = '#ffcc00';
+      ctx.font = 'bold 24px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('LEVEL COMPLETE!', CW/2, CH/2);
+      statusLeft.textContent = 'LEVEL COMPLETE!';
+    }
+
+    // Death message
+    if (player.dead && deathTimer > 0) {
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(0, CH/2-24, CW, 48);
+      ctx.fillStyle = '#ff4444';
+      ctx.font = 'bold 24px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('YOU DIED!', CW/2, CH/2);
+    }
+  }
+
+  if (mode === 'edit') {
+    statusLeft.textContent = 'EDIT MODE — Selected: ' + TILE_LABELS[selectedTool] || 'Empty';
+  }
+}
+
+// ==================== GAME LOOP ====================
+let lastTime = 0;
+function gameLoop(time) {
+  const dt = lastTime ? Math.min((time - lastTime) / 16.67, 3) : 1;
+  lastTime = time;
+
+  if (mode === 'play') {
+    updatePhysics(dt);
+
+    // Death respawn
+    if (player.dead) {
+      deathTimer--;
+      if (deathTimer <= 0) {
+        resetGame();
+      }
+    }
+
+    // Win reset
+    if (flagGoal) {
+      winTimer--;
+      if (winTimer <= 0) {
+        // Return to edit mode
+        setMode('edit');
+        return;
+      }
+    }
+  }
+
+  render();
+  requestAnimationFrame(gameLoop);
+}
+
+// ==================== MODE ====================
+function setMode(m) {
+  mode = m;
+  canvas.classList.toggle('play', m === 'play');
+  toggleBtn.textContent = m === 'play' ? 'EDIT' : 'PLAY';
+  toggleBtn.className = m === 'play' ? 'playing' : '';
+
+  if (m === 'edit') {
+    statusLeft.textContent = 'EDIT MODE';
+    document.querySelectorAll('.tool-btn').forEach(b => b.style.display = '');
+  } else {
+    statusLeft.textContent = 'PLAY MODE';
+    document.querySelectorAll('.tool-btn').forEach(b => b.style.display = 'none');
+    resetGame();
+  }
+}
+
+toggleBtn.addEventListener('click', () => {
+  setMode(mode === 'edit' ? 'play' : 'edit');
+  toggleBtn.blur();
+});
+
+// ==================== EDITOR INPUT ====================
+function getGridPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const x = Math.floor((e.clientX - rect.left) * scaleX / T);
+  const y = Math.floor((e.clientY - rect.top) * scaleY / T);
+  return {x, y};
+}
+
+canvas.addEventListener('mousedown', (e) => {
+  if (mode !== 'edit') return;
+  e.preventDefault();
+  const {x, y} = getGridPos(e);
+  if (x < 0 || x >= GW || y < 0 || y >= GH) return;
+
+  if (e.button === 2) {
+    // Right-click = eraser
+    level[y][x] = TILE.EMPTY;
+    return;
+  }
+
+  level[y][x] = selectedTool;
+  if (selectedTool === TILE.PLAYER_SPAWN) {
+    spawnPoint = {x: x*T + 2, y: y*T};
+  }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  if (mode !== 'edit' || !(e.buttons & 1)) return;
+  e.preventDefault();
+  const {x, y} = getGridPos(e);
+  if (x < 0 || x >= GW || y < 0 || y >= GH) return;
+  level[y][x] = selectedTool;
+  if (selectedTool === TILE.PLAYER_SPAWN) {
+    spawnPoint = {x: x*T + 2, y: y*T};
+  }
+  statusRight.textContent = `Pos: ${x},${y}`;
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  if (mode === 'edit') {
+    const {x, y} = getGridPos(e);
+    statusRight.textContent = `Pos: ${x},${y}`;
+  }
+});
+
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+// ==================== KEYBOARD ====================
+document.addEventListener('keydown', (e) => {
+  keys[e.code] = true;
+  // Prevent Space from clicking focused buttons during gameplay
+  if (e.code === 'Space' && mode === 'play') {
+    e.preventDefault();
+  }
+  if (e.code === 'KeyP' || e.code === 'Escape') {
+    if (mode === 'play') setMode('edit');
+    else if (e.code === 'KeyP') setMode('play');
+  }
+});
+
+document.addEventListener('keyup', (e) => {
+  keys[e.code] = false;
+});
+
+// ==================== LEVEL RESET ====================
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R')) {
+    e.preventDefault();
+    if (confirm('Reset level to default?')) {
+      initLevel();
+      resetGame();
+      buildToolbar();
+    }
+  }
+});
+
+// ==================== START ====================
+initLevel();
+buildToolbar();
+resetGame();
+requestAnimationFrame(gameLoop);
+
+// Expose state for Playwright tests
+window.__getGameState = () => ({ player, enemies, mushrooms, flagGoal, mode, level, blockHit });
+
+})();
+</script>
+</body>
+</html>

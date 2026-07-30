@@ -1,0 +1,224 @@
+Commits: b125bc8..2144459
+
+git log --oneline:
+2144459 feat: add HTML skeleton with tab layout and default project data
+b125bc8 chore: initial project setup with design spec and implementation plan
+
+git diff --stat:
+ index.html | 204 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 204 insertions(+)
+
+Full diff:
+--- a/index.html (nonexistent)
++++ b/index.html (new)
+
+diff --git a/index.html b/index.html
+new file mode 100644
+index 0000000..59a39e3
+--- /dev/null
++++ b/index.html
+@@ -0,0 +1,204 @@
++<!DOCTYPE html>
++<html lang="en">
++<head>
++<meta charset="UTF-8">
++<meta name="viewport" content="width=device-width, initial-scale=1.0">
++<title>2D Retro Game Maker</title>
++<style>
++* { margin: 0; padding: 0; box-sizing: border-box; }
++body {
++  background: #111;
++  color: #ddd;
++  font-family: 'Courier New', Courier, monospace;
++  display: flex;
++  justify-content: center;
++  min-height: 100vh;
++}
++#app {
++  width: 720px;
++  display: flex;
++  flex-direction: column;
++  align-items: center;
++  padding: 16px 0;
++}
++header { width: 100%; }
++#tab-bar {
++  display: flex;
++  gap: 2px;
++}
++.tab-btn {
++  background: #222;
++  color: #888;
++  border: 1px solid #333;
++  border-bottom: none;
++  padding: 8px 18px;
++  font-family: inherit;
++  font-size: 14px;
++  cursor: pointer;
++  border-radius: 4px 4px 0 0;
++  transition: background 0.15s;
++}
++.tab-btn:hover { background: #2a2a2a; color: #aaa; }
++.tab-btn.active {
++  background: #1a1a2e;
++  color: #fff;
++  border-color: #444;
++  font-weight: bold;
++}
++#toolbar {
++  width: 100%;
++  background: #1a1a2e;
++  border: 1px solid #333;
++  border-top: none;
++  padding: 6px 10px;
++  min-height: 32px;
++  display: flex;
++  align-items: center;
++  gap: 8px;
++  font-size: 12px;
++  color: #666;
++}
++#canvas-container {
++  position: relative;
++  width: 640px;
++  height: 480px;
++  border: 2px solid #333;
++  margin: 0;
++}
++#canvas-container canvas {
++  position: absolute;
++  top: 0;
++  left: 0;
++  image-rendering: pixelated;
++  image-rendering: crisp-edges;
++}
++footer {
++  width: 100%;
++  margin-top: 12px;
++  display: flex;
++  gap: 8px;
++  justify-content: center;
++}
++footer button, .btn {
++  background: #222;
++  color: #ddd;
++  border: 1px solid #444;
++  padding: 6px 16px;
++  font-family: inherit;
++  font-size: 13px;
++  cursor: pointer;
++  border-radius: 3px;
++}
++footer button:hover, .btn:hover {
++  background: #333;
++  color: #fff;
++}
++</style>
++</head>
++<body>
++<div id="app">
++  <header>
++    <div id="tab-bar">
++      <button class="tab-btn active" data-mode="tile" onclick="switchMode('tile')">Tile Editor</button>
++      <button class="tab-btn" data-mode="sprite" onclick="switchMode('sprite')">Sprite Editor</button>
++      <button class="tab-btn" data-mode="level" onclick="switchMode('level')">Level Editor</button>
++      <button class="tab-btn" data-mode="play" onclick="switchMode('play')">Play</button>
++    </div>
++  </header>
++  <div id="toolbar"></div>
++  <div id="canvas-container">
++    <canvas id="canvas-tile" width="640" height="480"></canvas>
++    <canvas id="canvas-sprite" width="640" height="480" style="display:none"></canvas>
++    <canvas id="canvas-level" width="640" height="480" style="display:none"></canvas>
++    <canvas id="canvas-play" width="640" height="480" style="display:none"></canvas>
++  </div>
++  <footer>
++    <button onclick="saveProject()">Save</button>
++    <button onclick="document.getElementById('loadInput').click()">Load</button>
++    <input type="file" id="loadInput" accept=".json" style="display:none" onchange="loadProject(event)">
++    <button onclick="exportHtml()">Export</button>
++  </footer>
++</div>
++<script>
++const project = {
++  tiles: [],
++  level: [],
++  playerSprite: { pixels: null, width: 16, height: 32 },
++  playerStart: { col: 2, row: 10 },
++  palette: ['#000000','#FFFFFF','#E00808','#0028DC','#00A800','#FCF800','#8C4800','#78ACFC'],
++  metadata: { name: 'My Level' }
++};
++
++let currentMode = 'tile';
++
++const canvases = {
++  tile: document.getElementById('canvas-tile'),
++  sprite: document.getElementById('canvas-sprite'),
++  level: document.getElementById('canvas-level'),
++  play: document.getElementById('canvas-play')
++};
++
++function switchMode(mode) {
++  currentMode = mode;
++  document.querySelectorAll('.tab-btn').forEach(function(btn) {
++    btn.classList.toggle('active', btn.dataset.mode === mode);
++  });
++  Object.keys(canvases).forEach(function(key) {
++    canvases[key].style.display = (key === mode) ? 'block' : 'none';
++  });
++  initMode(mode);
++  renderCurrentMode();
++}
++
++function initMode(mode) {}
++
++function renderCurrentMode() {
++  var canvas = canvases[currentMode];
++  var ctx = canvas.getContext('2d');
++  ctx.fillStyle = '#000000';
++  ctx.fillRect(0, 0, 640, 480);
++  ctx.fillStyle = '#FFFFFF';
++  ctx.font = '24px Courier New, monospace';
++  ctx.textAlign = 'center';
++  ctx.textBaseline = 'middle';
++  var names = { tile: 'Tile Editor', sprite: 'Sprite Editor', level: 'Level Editor', play: 'Play Mode' };
++  ctx.fillText(names[currentMode], 320, 240);
++}
++
++function updateDefaultTiles() {
++  project.tiles[0] = { id: 0, pixels: null, width: 16, height: 16 };
++
++  var ground = new Uint8Array(256);
++  ground.fill(6);
++  project.tiles[1] = { id: 1, pixels: ground, width: 16, height: 16 };
++
++  var brick = new Uint8Array(256);
++  brick.fill(2);
++  project.tiles[2] = { id: 2, pixels: brick, width: 16, height: 16 };
++
++  var question = new Uint8Array(256);
++  question.fill(5);
++  project.tiles[3] = { id: 3, pixels: question, width: 16, height: 16 };
++
++  project.level = [];
++  for (var row = 0; row < 15; row++) {
++    project.level[row] = [];
++    for (var col = 0; col < 20; col++) {
++      project.level[row][col] = (row === 14) ? 1 : 0;
++    }
++  }
++
++  var playerPixels = new Uint8Array(512);
++  playerPixels.fill(0);
++  project.playerSprite = { pixels: playerPixels, width: 16, height: 32 };
++}
++
++function saveProject() {}
++function loadProject(e) {}
++function exportHtml() {}
++
++updateDefaultTiles();
++switchMode('tile');
++</script>
++</body>
++</html>

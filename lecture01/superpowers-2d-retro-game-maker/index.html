@@ -1,0 +1,1610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2D Retro Game Maker</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #0a0a10;
+  color: #c8c8d4;
+  font-family: 'Courier New', Courier, 'Lucida Console', monospace;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+}
+#app {
+  width: 720px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  gap: 6px;
+}
+header { width: 100%; }
+#tab-bar {
+  display: flex;
+  gap: 1px;
+  padding: 0 2px;
+}
+.tab-btn {
+  background: #181825;
+  color: #6a6a8a;
+  border: 1px solid #2a2a3f;
+  border-bottom: none;
+  padding: 7px 18px 8px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 3px 3px 0 0;
+  transition: background 0.1s, color 0.1s;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+.tab-btn:hover { background: #20203a; color: #a0a0c0; }
+.tab-btn.active {
+  background: #1a1a2e;
+  color: #00d4ff;
+  border-color: #3a3a55;
+  text-shadow: 0 0 6px rgba(0,212,255,0.3);
+}
+#toolbar {
+  width: 100%;
+  background: #12121e;
+  border: 1px solid #2a2a3f;
+  padding: 5px 8px;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #6a6a8a;
+  flex-wrap: wrap;
+}
+#canvas-container {
+  position: relative;
+  width: 640px;
+  height: 480px;
+  border: 3px solid #2a2a3f;
+  border-radius: 2px;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 0 4px rgba(0,212,255,0.08);
+  margin: 0;
+}
+#canvas-container canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+#canvas-tile, #canvas-sprite, #canvas-level { cursor: crosshair; }
+footer {
+  width: 100%;
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+footer button, .btn {
+  background: #181825;
+  color: #a0a0c0;
+  border: 1px solid #3a3a55;
+  padding: 6px 16px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background 0.1s, border-color 0.1s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+footer button:hover, .btn:hover {
+  background: #20203a;
+  color: #00d4ff;
+  border-color: #00d4ff;
+}
+.toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  border-right: 1px solid #2a2a3f;
+  flex-shrink: 0;
+}
+.toolbar-group:last-child { border-right: none; }
+.swatch {
+  width: 20px;
+  height: 20px;
+  border: 2px solid transparent;
+  border-radius: 2px;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: border-color 0.1s, opacity 0.1s;
+}
+.swatch.active { border-color: #00d4ff; box-shadow: 0 0 4px rgba(0,212,255,0.4); }
+.swatch:hover { opacity: 0.75; }
+.tile-thumb {
+  border: 2px solid transparent;
+  cursor: pointer;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  flex-shrink: 0;
+  transition: border-color 0.1s;
+}
+.tile-thumb.active { border-color: #e94560; box-shadow: 0 0 4px rgba(233,69,96,0.3); }
+.tile-label {
+  font-size: 10px;
+  color: #6a6a8a;
+  max-width: 40px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.toolbar-input {
+  background: #0a0a10;
+  color: #c8c8d4;
+  border: 1px solid #2a2a3f;
+  padding: 2px 6px;
+  font-family: inherit;
+  font-size: 11px;
+  width: 70px;
+}
+.toolbar-input:focus { border-color: #00d4ff; outline: none; }
+.toolbar-btn {
+  background: #181825;
+  color: #a0a0c0;
+  border: 1px solid #3a3a55;
+  padding: 3px 8px;
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.toolbar-btn:hover { background: #20203a; color: #00d4ff; border-color: #00d4ff; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+  <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 4px 4px">
+    <span style="color:#00d4ff;font-size:12px;letter-spacing:1px;text-transform:uppercase;font-weight:bold;">&#x25B6; Retro Game Maker</span>
+    <span style="color:#6a6a8a;font-size:10px;">NES Platformer</span>
+  </div>
+  <div id="tab-bar">
+      <button class="tab-btn active" data-mode="tile" onclick="switchMode('tile')">Tile Editor</button>
+      <button class="tab-btn" data-mode="sprite" onclick="switchMode('sprite')">Sprite Editor</button>
+      <button class="tab-btn" data-mode="level" onclick="switchMode('level')">Level Editor</button>
+      <button class="tab-btn" data-mode="play" onclick="switchMode('play')">Play</button>
+    </div>
+  </header>
+  <div id="toolbar"></div>
+  <div id="canvas-container">
+    <canvas id="canvas-tile" width="640" height="480"></canvas>
+    <canvas id="canvas-sprite" width="640" height="480" style="display:none"></canvas>
+    <canvas id="canvas-level" width="640" height="480" style="display:none"></canvas>
+    <canvas id="canvas-play" width="640" height="480" style="display:none"></canvas>
+  </div>
+  <footer>
+    <button onclick="saveProject()">Save</button>
+    <button onclick="document.getElementById('loadInput').click()">Load</button>
+    <input type="file" id="loadInput" accept=".json" style="display:none" onchange="loadProject(event)">
+    <button onclick="exportHtml()">Export</button>
+  </footer>
+</div>
+<script>
+var project = {
+  tiles: [],
+  level: [],
+  playerSprite: { pixels: null, width: 16, height: 32 },
+  playerStart: { col: 2, row: 10 },
+  palette: ['#000000','#FFFFFF','#E00808','#0028DC','#00A800','#FCF800','#8C4800','#78ACFC'],
+  metadata: { name: 'My Level' }
+};
+
+let currentMode = 'tile';
+
+const canvases = {
+  tile: document.getElementById('canvas-tile'),
+  sprite: document.getElementById('canvas-sprite'),
+  level: document.getElementById('canvas-level'),
+  play: document.getElementById('canvas-play')
+};
+
+// Pixel grid utility
+function drawPixelGrid(ctx, offsetX, offsetY, cellSize, pixels, gridW, gridH, palette, showGrid) {
+  for (var row = 0; row < gridH; row++) {
+    for (var col = 0; col < gridW; col++) {
+      var idx = row * gridW + col;
+      var val = pixels ? pixels[idx] : null;
+      if (val !== null && val !== undefined && val >= 0 && val < palette.length && val !== 255) {
+        ctx.fillStyle = palette[val];
+        ctx.fillRect(offsetX + col * cellSize, offsetY + row * cellSize, cellSize, cellSize);
+      }
+    }
+  }
+  if (showGrid) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 0.5;
+    for (var r = 0; r <= gridH; r++) {
+      ctx.beginPath();
+      ctx.moveTo(offsetX, offsetY + r * cellSize);
+      ctx.lineTo(offsetX + gridW * cellSize, offsetY + r * cellSize);
+      ctx.stroke();
+    }
+    for (var c = 0; c <= gridW; c++) {
+      ctx.beginPath();
+      ctx.moveTo(offsetX + c * cellSize, offsetY);
+      ctx.lineTo(offsetX + c * cellSize, offsetY + gridH * cellSize);
+      ctx.stroke();
+    }
+  }
+}
+
+var tileEditor = {
+  selectedColor: 0,
+  editingTileId: 1,
+  mouseDown: false
+};
+
+var spriteEditor = {
+  selectedColor: 0,
+  mouseDown: false
+};
+
+var levelEditor = {
+  selectedTileId: 1,
+  mouseDown: false,
+  placing: true,
+  placingStart: false,
+  hoverCol: -1,
+  hoverRow: -1,
+  scrollX: 0,
+  scrollY: 0
+};
+
+// Play mode state
+var playState = {
+  player: { x: 0, y: 0, vx: 0, vy: 0, onGround: false, jumping: false, big: false },
+  enemies: [],
+  items: [],
+  hitBlocks: {},
+  camera: { x: 0, y: 0 },
+  keys: {},
+  running: false,
+  frameCount: 0,
+  levelClear: false,
+  levelClearTimer: 0
+};
+
+var PHYS = {
+  GRAVITY: 0.5,
+  MOVE_SPEED: 3,
+  JUMP_VEL: -8,
+  MAX_FALL: 10,
+  PLAYER_W: 12,
+  PLAYER_H: 28,
+  PLAYER_OFF_X: 2,
+  PLAYER_OFF_Y: 4
+};
+
+function switchMode(mode) {
+  if (currentMode === 'play') {
+    playState.running = false;
+  }
+  currentMode = mode;
+  document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+  Object.keys(canvases).forEach(function(key) {
+    canvases[key].style.display = (key === mode) ? 'block' : 'none';
+  });
+  initMode(mode);
+  renderCurrentMode();
+}
+
+var modeInit = {};
+function initMode(mode) {
+  if (modeInit[mode]) modeInit[mode]();
+}
+
+modeInit.tile = function() {
+  var tb = document.getElementById('toolbar');
+  tb.innerHTML = '';
+  function group() {
+    var g = document.createElement('div');
+    g.className = 'toolbar-group';
+    tb.appendChild(g);
+    return g;
+  }
+  // Color swatches
+  var sg = group();
+  for (var i = 0; i < project.palette.length; i++) {
+    var sw = document.createElement('button');
+    sw.className = 'swatch' + (i === tileEditor.selectedColor ? ' active' : '');
+    sw.style.background = project.palette[i];
+    sw.title = project.palette[i];
+    sw.onclick = (function(idx) {
+      return function() { tileEditor.selectedColor = idx; modeInit.tile(); };
+    })(i);
+    sg.appendChild(sw);
+  }
+  // Tile browser
+  var tg = group();
+  for (var i = 1; i < project.tiles.length; i++) {
+    var tile = project.tiles[i];
+    if (!tile || !tile.pixels) continue;
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'display:inline-flex;flex-direction:column;align-items:center;margin:0 2px;';
+    var tc = document.createElement('canvas');
+    tc.className = 'tile-thumb' + (i === tileEditor.editingTileId ? ' active' : '');
+    tc.width = 16;
+    tc.height = 16;
+    tc.style.width = '24px';
+    tc.style.height = '24px';
+    (function(idx) {
+      tc.onclick = function() { tileEditor.editingTileId = idx; modeInit.tile(); };
+    })(i);
+    var tctx = tc.getContext('2d');
+    if (tile.pixels) drawPixelGrid(tctx, 0, 0, 1, tile.pixels, 16, 16, project.palette, false);
+    wrap.appendChild(tc);
+    var lab = document.createElement('span');
+    lab.className = 'tile-label';
+    lab.textContent = tile.name || '';
+    wrap.appendChild(lab);
+    tg.appendChild(wrap);
+  }
+  // New tile button
+  var nb = document.createElement('button');
+  nb.className = 'toolbar-btn';
+  nb.textContent = '+New';
+  nb.onclick = function() {
+    var id = project.tiles.length;
+    var p = new Uint8Array(256);
+    p.fill(255);
+    project.tiles[id] = { id: id, pixels: p, width: 16, height: 16, name: 'Tile ' + id };
+    tileEditor.editingTileId = id;
+    modeInit.tile();
+    renderCurrentMode();
+  };
+  tg.appendChild(nb);
+  // Delete button
+  var db = document.createElement('button');
+  db.className = 'toolbar-btn';
+  db.textContent = 'X';
+  db.title = 'Delete tile';
+  db.onclick = function() {
+    var et = tileEditor.editingTileId;
+    if (et > 0 && et < project.tiles.length && project.tiles[et]) {
+      project.tiles[et] = null;
+      tileEditor.editingTileId = 1;
+      modeInit.tile();
+      renderCurrentMode();
+    }
+  };
+  tg.appendChild(db);
+  // Name input
+  var ni = document.createElement('input');
+  ni.className = 'toolbar-input';
+  ni.type = 'text';
+  ni.placeholder = 'Name';
+  var et = project.tiles[tileEditor.editingTileId];
+  ni.value = et ? (et.name || '') : '';
+  ni.oninput = function() {
+    if (project.tiles[tileEditor.editingTileId]) {
+      project.tiles[tileEditor.editingTileId].name = this.value;
+    }
+  };
+  tg.appendChild(ni);
+};
+
+modeInit.sprite = function() {
+  var tb = document.getElementById('toolbar');
+  tb.innerHTML = '';
+  function group() {
+    var g = document.createElement('div');
+    g.className = 'toolbar-group';
+    tb.appendChild(g);
+    return g;
+  }
+  // Color swatches
+  var sg = group();
+  for (var i = 0; i < project.palette.length; i++) {
+    var sw = document.createElement('button');
+    sw.className = 'swatch' + (i === spriteEditor.selectedColor ? ' active' : '');
+    sw.style.background = project.palette[i];
+    sw.title = project.palette[i];
+    sw.onclick = (function(idx) {
+      return function() { spriteEditor.selectedColor = idx; modeInit.sprite(); };
+    })(i);
+    sg.appendChild(sw);
+  }
+  // Preview canvas (2x scaled)
+  var pg = group();
+  var preview = document.createElement('canvas');
+  preview.id = 'preview-sprite';
+  preview.width = 32;
+  preview.height = 64;
+  preview.style.width = '64px';
+  preview.style.height = '128px';
+  preview.style.border = '1px solid #444';
+  preview.style.imageRendering = 'pixelated';
+  preview.style.imageRendering = 'crisp-edges';
+  var pctx = preview.getContext('2d');
+  pctx.fillStyle = '#000';
+  pctx.fillRect(0, 0, 32, 64);
+  if (project.playerSprite && project.playerSprite.pixels) {
+    drawPixelGrid(pctx, 0, 0, 2, project.playerSprite.pixels, 16, 32, project.palette, false);
+  }
+  pg.appendChild(preview);
+  var lab = document.createElement('span');
+  lab.textContent = 'Preview';
+  lab.style.cssText = 'font-size:10px;color:#888;';
+  pg.appendChild(lab);
+  // Clear button
+  var cg = group();
+  var clr = document.createElement('button');
+  clr.className = 'toolbar-btn';
+  clr.textContent = 'Clear';
+  clr.onclick = function() {
+    if (project.playerSprite && project.playerSprite.pixels) {
+      project.playerSprite.pixels.fill(255);
+      renderCurrentMode();
+    }
+  };
+  cg.appendChild(clr);
+  // Fill button
+  var fil = document.createElement('button');
+  fil.className = 'toolbar-btn';
+  fil.textContent = 'Fill';
+  fil.onclick = function() {
+    if (project.playerSprite && project.playerSprite.pixels) {
+      project.playerSprite.pixels.fill(spriteEditor.selectedColor);
+      renderCurrentMode();
+    }
+  };
+  cg.appendChild(fil);
+};
+
+modeInit.level = function() {
+  var tb = document.getElementById('toolbar');
+  tb.innerHTML = '';
+  function group() {
+    var g = document.createElement('div');
+    g.className = 'toolbar-group';
+    tb.appendChild(g);
+    return g;
+  }
+  // Tile palette
+  var tg = group();
+  var hasPlaceable = false;
+  for (var i = 0; i < project.tiles.length; i++) {
+    var tile = project.tiles[i];
+    if (!tile) continue;
+    if (tile.pixels) hasPlaceable = true;
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'display:inline-flex;flex-direction:column;align-items:center;margin:0 2px;';
+    var tc = document.createElement('canvas');
+    tc.className = 'tile-thumb' + (i === levelEditor.selectedTileId ? ' active' : '');
+    tc.width = 16;
+    tc.height = 16;
+    tc.style.width = '24px';
+    tc.style.height = '24px';
+    (function(idx) {
+      tc.onclick = function() {
+        levelEditor.selectedTileId = idx;
+        levelEditor.placingStart = false;
+        modeInit.level();
+      };
+    })(i);
+    var tctx = tc.getContext('2d');
+    if (tile.pixels) drawPixelGrid(tctx, 0, 0, 1, tile.pixels, 16, 16, project.palette, false);
+    wrap.appendChild(tc);
+    var lab = document.createElement('span');
+    lab.className = 'tile-label';
+    lab.textContent = tile.name || '';
+    wrap.appendChild(lab);
+    tg.appendChild(wrap);
+  }
+  if (!hasPlaceable) {
+    var noTileMsg = document.createElement('span');
+    noTileMsg.textContent = 'No tiles defined. Create tiles in the Tile Editor.';
+    noTileMsg.style.cssText = 'color:#ff6;font-size:11px;';
+    tg.appendChild(noTileMsg);
+  }
+  // Place/Erase toggle
+  var pg = group();
+  var toggleBtn = document.createElement('button');
+  toggleBtn.className = 'toolbar-btn';
+  toggleBtn.textContent = levelEditor.placing ? 'Place' : 'Erase';
+  toggleBtn.onclick = function() {
+    levelEditor.placing = !levelEditor.placing;
+    levelEditor.placingStart = false;
+    modeInit.level();
+  };
+  pg.appendChild(toggleBtn);
+  // Set Start button
+  var sg = group();
+  var startBtn = document.createElement('button');
+  startBtn.className = 'toolbar-btn';
+  startBtn.textContent = 'Set Start';
+  startBtn.onclick = function() {
+    levelEditor.placingStart = !levelEditor.placingStart;
+    levelEditor.placing = true;
+    modeInit.level();
+  };
+  sg.appendChild(startBtn);
+  if (levelEditor.placingStart) {
+    var hint = document.createElement('span');
+    hint.textContent = 'Click on level to place start...';
+    hint.style.cssText = 'color:#ff6;font-size:11px;';
+    sg.appendChild(hint);
+  }
+  // Scroll controls
+  var scg = group();
+  var lvl = project.level;
+  var cols = (lvl && lvl[0]) ? lvl[0].length : 20;
+  var rows = lvl ? lvl.length : 15;
+  var maxScrollX = Math.max(0, cols * 16 - 640);
+  var maxScrollY = Math.max(0, rows * 16 - 480);
+  var leftBtn = document.createElement('button');
+  leftBtn.className = 'toolbar-btn';
+  leftBtn.textContent = '◀';
+  leftBtn.title = 'Scroll left';
+  leftBtn.onclick = function() { levelEditor.scrollX = Math.max(0, levelEditor.scrollX - 80); renderCurrentMode(); };
+  scg.appendChild(leftBtn);
+  var rightBtn = document.createElement('button');
+  rightBtn.className = 'toolbar-btn';
+  rightBtn.textContent = '▶';
+  rightBtn.title = 'Scroll right';
+  rightBtn.onclick = function() { levelEditor.scrollX = Math.min(maxScrollX, levelEditor.scrollX + 80); renderCurrentMode(); };
+  scg.appendChild(rightBtn);
+  var posLabel = document.createElement('span');
+  posLabel.style.cssText = 'color:#888;font-size:10px;';
+  var visCols = Math.ceil(640 / 16);
+  posLabel.textContent = Math.round(levelEditor.scrollX / 16) + '-' + Math.round(Math.min(cols, levelEditor.scrollX / 16 + visCols)) + '/' + cols + ' cols';
+  scg.appendChild(posLabel);
+  if (maxScrollY > 0) {
+    var upBtn = document.createElement('button');
+    upBtn.className = 'toolbar-btn';
+    upBtn.textContent = '▲';
+    upBtn.title = 'Scroll up';
+    upBtn.onclick = function() { levelEditor.scrollY = Math.max(0, levelEditor.scrollY - 80); renderCurrentMode(); };
+    scg.appendChild(upBtn);
+    var downBtn = document.createElement('button');
+    downBtn.className = 'toolbar-btn';
+    downBtn.textContent = '▼';
+    downBtn.title = 'Scroll down';
+    downBtn.onclick = function() { levelEditor.scrollY = Math.min(maxScrollY, levelEditor.scrollY + 80); renderCurrentMode(); };
+    scg.appendChild(downBtn);
+  }
+};
+
+// Collision helpers
+function isSolidTile(col, row) {
+  if (row < 0 || row >= project.level.length) return false;
+  if (col < 0 || col >= project.level[0].length) return true;
+  return project.level[row][col] > 0;
+}
+
+function getPlayerBox() {
+  return {
+    left: playState.player.x + PHYS.PLAYER_OFF_X,
+    right: playState.player.x + PHYS.PLAYER_OFF_X + PHYS.PLAYER_W,
+    top: playState.player.y + PHYS.PLAYER_OFF_Y,
+    bottom: playState.player.y + PHYS.PLAYER_OFF_Y + PHYS.PLAYER_H
+  };
+}
+
+function resolveCollisionX() {
+  var p = playState.player;
+  var box = getPlayerBox();
+  var bottomRow = Math.floor((box.bottom - 1) / 16);
+  for (var r = bottomRow; r <= bottomRow; r++) {
+    if (p.vx > 0) {
+      var rightCol = Math.floor((box.right - 1) / 16);
+      if (isSolidTile(rightCol, r)) {
+        p.x = rightCol * 16 - PHYS.PLAYER_OFF_X - PHYS.PLAYER_W;
+        p.vx = 0;
+        break;
+      }
+    } else if (p.vx < 0) {
+      var leftCol = Math.floor(box.left / 16);
+      if (isSolidTile(leftCol, r)) {
+        p.x = (leftCol + 1) * 16 - PHYS.PLAYER_OFF_X;
+        p.vx = 0;
+        break;
+      }
+    }
+  }
+}
+
+function resolveCollisionY() {
+  var p = playState.player;
+  var box = getPlayerBox();
+  var leftCol = Math.floor(box.left / 16);
+  var rightCol = Math.floor((box.right - 1) / 16);
+  if (p.vy > 0) {
+    var bottomRow = Math.floor((box.bottom - 1) / 16);
+    for (var c = leftCol; c <= rightCol; c++) {
+      if (isSolidTile(c, bottomRow)) {
+        p.y = bottomRow * 16 - PHYS.PLAYER_OFF_Y - PHYS.PLAYER_H;
+        p.vy = 0;
+        p.onGround = true;
+        return;
+      }
+    }
+    if (p.onGround) {
+      var belowRow = Math.floor(box.bottom / 16);
+      p.onGround = false;
+      for (var c = leftCol; c <= rightCol; c++) {
+        if (isSolidTile(c, belowRow)) {
+          p.onGround = true;
+          break;
+        }
+      }
+    }
+  } else if (p.vy < 0) {
+    var topRow = Math.floor(box.top / 16);
+    for (var c = leftCol; c <= rightCol; c++) {
+      if (isSolidTile(c, topRow)) {
+        p.y = (topRow + 1) * 16 - PHYS.PLAYER_OFF_Y;
+        p.vy = 0;
+        break;
+      }
+    }
+  }
+}
+
+// Block hit detection — player head bump
+function checkBlockHit() {
+  var p = playState.player;
+  if (p.vy >= 0) return;
+  var headRow = Math.floor((p.y + PHYS.PLAYER_OFF_Y) / 16);
+  var leftCol = Math.floor((p.x + PHYS.PLAYER_OFF_X) / 16);
+  var rightCol = Math.floor((p.x + PHYS.PLAYER_OFF_X + PHYS.PLAYER_W - 1) / 16);
+  for (var c = leftCol; c <= rightCol; c++) {
+    var key = c + '_' + headRow;
+    if (playState.hitBlocks[key]) continue;
+    var tileId = (project.level[headRow] && project.level[headRow][c]) || 0;
+    if (tileId === 3) {
+      playState.hitBlocks[key] = true;
+      project.level[headRow][c] = 7;
+      playState.items.push({
+        x: c * 16 + 4,
+        y: headRow * 16,
+        vx: 0,
+        vy: -2,
+        type: 'mushroom',
+        active: true,
+        rising: true,
+        riseTarget: (headRow - 2) * 16
+      });
+    }
+  }
+}
+
+function updatePlay() {
+  var p = playState.player;
+  var k = playState.keys;
+  if (k['ArrowLeft'] || k['KeyA']) {
+    p.vx = -PHYS.MOVE_SPEED;
+  } else if (k['ArrowRight'] || k['KeyD']) {
+    p.vx = PHYS.MOVE_SPEED;
+  } else {
+    p.vx = 0;
+  }
+  if ((k['Space'] || k['ArrowUp'] || k['KeyW']) && p.onGround) {
+    p.vy = PHYS.JUMP_VEL;
+    p.jumping = true;
+    p.onGround = false;
+  }
+  if (p.jumping && !(k['Space'] || k['ArrowUp'] || k['KeyW']) && p.vy < 0) {
+    p.vy = 0;
+    p.jumping = false;
+  }
+  p.vy += PHYS.GRAVITY;
+  if (p.vy > PHYS.MAX_FALL) p.vy = PHYS.MAX_FALL;
+  p.x += p.vx;
+  resolveCollisionX();
+  p.y += p.vy;
+  checkBlockHit(); // detect block hits BEFORE collision resolves player out
+  resolveCollisionY();
+  if (p.y > project.level.length * 16 + 200) {
+    p.x = project.playerStart.col * 16 + PHYS.PLAYER_OFF_X;
+    p.y = project.playerStart.row * 16;
+    p.vx = 0;
+    p.vy = 0;
+    p.onGround = false;
+  }
+
+  // Update enemies
+  for (var ei = 0; ei < playState.enemies.length; ei++) {
+    var e = playState.enemies[ei];
+    if (!e.alive) continue;
+    e.x += e.vx;
+    var frontCol, belowCol, belowRow;
+    if (e.vx > 0) {
+      frontCol = Math.floor((e.x + e.width) / 16);
+      belowCol = Math.floor((e.x + e.width) / 16);
+    } else {
+      frontCol = Math.floor(e.x / 16);
+      belowCol = Math.floor(e.x / 16);
+    }
+    var enemyRow = Math.floor((e.y + e.height - 1) / 16);
+    belowRow = enemyRow + 1;
+    var hitWall = isSolidTile(frontCol, enemyRow);
+    var noGround = (belowRow >= project.level.length) || !isSolidTile(belowCol, belowRow);
+    if (hitWall || noGround) e.vx = -e.vx;
+  }
+
+  // Player-enemy collision
+  for (var ei = 0; ei < playState.enemies.length; ei++) {
+    var e = playState.enemies[ei];
+    if (!e.alive) continue;
+    var px = p.x + PHYS.PLAYER_OFF_X;
+    var py = p.y + PHYS.PLAYER_OFF_Y;
+    var pw = PHYS.PLAYER_W;
+    var ph = PHYS.PLAYER_H;
+    if (px < e.x + e.width && px + pw > e.x && py < e.y + e.height && py + ph > e.y) {
+      var playerBottom = py + ph;
+      var enemyTop = e.y;
+      var prevBottom = playerBottom - p.vy;
+      if (p.vy > 0 && prevBottom <= enemyTop + 4) {
+        e.alive = false;
+        p.vy = -6;
+      } else {
+        if (p.big) {
+          p.big = false;
+          if (p.x < e.x) p.x = e.x - pw - PHYS.PLAYER_OFF_X;
+          else p.x = e.x + e.width - PHYS.PLAYER_OFF_X;
+        } else {
+          p.x = project.playerStart.col * 16 + PHYS.PLAYER_OFF_X;
+          p.y = project.playerStart.row * 16;
+          p.vx = 0;
+          p.vy = 0;
+        }
+      }
+    }
+  }
+
+  // Update items
+  for (var ii = 0; ii < playState.items.length; ii++) {
+    var item = playState.items[ii];
+    if (!item.active) continue;
+    if (item.rising) {
+      item.y += item.vy;
+      if (item.y <= item.riseTarget) {
+        item.rising = false;
+        item.vy = 0;
+        item.vx = 1.5;
+      }
+    } else {
+      item.x += item.vx;
+      var itemRow = Math.floor((item.y + 14) / 16);
+      var itemCol = Math.floor((item.x + (item.vx > 0 ? 14 : 0)) / 16);
+      if (isSolidTile(itemCol, itemRow)) item.vx = -item.vx;
+    }
+    var px = p.x + PHYS.PLAYER_OFF_X;
+    var py = p.y + PHYS.PLAYER_OFF_Y;
+    if (item.active && px < item.x + 16 && px + PHYS.PLAYER_W > item.x && py < item.y + 16 && py + PHYS.PLAYER_H > item.y) {
+      if (item.type === 'mushroom') {
+        p.big = true;
+        item.active = false;
+      }
+    }
+  }
+
+  // Flagpole check — player reaches col 58
+  if (!playState.levelClear) {
+    var playerRight = (p.x + PHYS.PLAYER_OFF_X + PHYS.PLAYER_W) / 16;
+    if (playerRight >= 57.5) {
+      playState.levelClear = true;
+      playState.levelClearTimer = 180; // ~3 seconds
+      p.vx = 0;
+    }
+  }
+
+  if (playState.levelClear) {
+    playState.levelClearTimer--;
+    if (playState.levelClearTimer <= 0) {
+      modeInit.play();
+      return;
+    }
+  }
+
+  if (project.level && project.level.length > 0 && project.level[0]) {
+    var levelW = project.level[0].length * 16;
+    var levelH = project.level.length * 16;
+    playState.camera.x = Math.max(0, Math.min(p.x + PHYS.PLAYER_W / 2 - 320, levelW - 640));
+    playState.camera.y = Math.max(0, Math.min(p.y + PHYS.PLAYER_H / 2 - 240, levelH - 480));
+  }
+  playState.frameCount++;
+}
+
+function renderPlay(ctx) {
+  ctx.fillStyle = '#5c94fc';
+  ctx.fillRect(0, 0, 640, 480);
+  ctx.save();
+  ctx.translate(-playState.camera.x, -playState.camera.y);
+  var tileSize = 16;
+  var cam = playState.camera;
+  if (project.level && project.level.length > 0 && project.level[0]) {
+    var startCol = Math.max(0, Math.floor(cam.x / tileSize));
+    var startRow = Math.max(0, Math.floor(cam.y / tileSize));
+    var endCol = Math.min(project.level[0].length, Math.ceil((cam.x + 640) / tileSize));
+    var endRow = Math.min(project.level.length, Math.ceil((cam.y + 480) / tileSize));
+    for (var r = startRow; r < endRow; r++) {
+      for (var c = startCol; c < endCol; c++) {
+        var tid = project.level[r][c];
+        var t = project.tiles[tid];
+        if (t && t.pixels) {
+          drawPixelGrid(ctx, c * tileSize, r * tileSize, 1, t.pixels, 16, 16, project.palette, false);
+        }
+      }
+    }
+  }
+  // Draw enemies
+  for (var ei = 0; ei < playState.enemies.length; ei++) {
+    var e = playState.enemies[ei];
+    if (!e.alive) continue;
+    var enemyTile = project.tiles[6];
+    if (enemyTile && enemyTile.pixels) {
+      drawPixelGrid(ctx, e.x, e.y, 1, enemyTile.pixels, 16, 16, project.palette, false);
+    }
+  }
+  // Draw items
+  for (var ii = 0; ii < playState.items.length; ii++) {
+    var item = playState.items[ii];
+    if (!item.active) continue;
+    ctx.fillStyle = '#FF0000';
+    ctx.fillRect(item.x, item.y, 16, 8);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(item.x + 4, item.y + 8, 8, 8);
+  }
+  if (project.playerSprite && project.playerSprite.pixels) {
+    if (playState.player.big) {
+      ctx.save();
+      ctx.translate(playState.player.x - 8, playState.player.y - 16);
+      ctx.scale(2, 2);
+      drawPixelGrid(ctx, 0, 0, 1, project.playerSprite.pixels, 16, 32, project.palette, false);
+      ctx.restore();
+    } else {
+      drawPixelGrid(ctx, playState.player.x, playState.player.y, 1, project.playerSprite.pixels, 16, 32, project.palette, false);
+    }
+  }
+  ctx.restore();
+  // LEVEL CLEAR overlay
+  if (playState.levelClear) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, 640, 480);
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 48px Courier New, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('LEVEL CLEAR!', 320, 200);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '20px Courier New, monospace';
+    ctx.fillText('Congratulations!', 320, 260);
+  }
+}
+
+modeInit.play = function() {
+  var tb = document.getElementById('toolbar');
+  tb.innerHTML = '';
+  if (!project.level || project.level.length === 0 || !project.level[0] || project.level[0].length === 0) {
+    playState.running = false;
+    var warn = document.createElement('span');
+    warn.textContent = 'No level data! Define a level first.';
+    warn.style.cssText = 'color:#f44;font-size:12px;';
+    tb.appendChild(warn);
+    return;
+  }
+  playState.player.x = project.playerStart.col * 16 + PHYS.PLAYER_OFF_X;
+  playState.player.y = project.playerStart.row * 16;
+  // feet will land at row*16 + PLAYER_OFF_Y + PLAYER_H once collision resolves
+  playState.player.vx = 0;
+  playState.player.vy = 0;
+  playState.player.onGround = false;
+  playState.player.jumping = false;
+  playState.player.big = false;
+  playState.camera.x = 0;
+  playState.camera.y = 0;
+  playState.keys = {};
+  playState.running = true;
+  playState.frameCount = 0;
+  playState.levelClear = false;
+  playState.levelClearTimer = 0;
+  playState.hitBlocks = {};
+  playState.items = [];
+  playState.enemies = [];
+  if (project.enemies) {
+    for (var ei = 0; ei < project.enemies.length; ei++) {
+      var e = project.enemies[ei];
+      playState.enemies.push({
+        x: e.col * 16 + 2,
+        y: e.row * 16 + 2,
+        vx: e.dir * 0.8,
+        alive: true,
+        width: 12,
+        height: 14
+      });
+    }
+  }
+  var hint = document.createElement('span');
+  hint.textContent = 'Arrow keys: Move | Space/Up: Jump | Stomp enemies!';
+  hint.style.cssText = 'color:#aaa;font-size:12px;';
+  tb.appendChild(hint);
+};
+
+// Tile canvas mouse handlers
+(function() {
+  var cv = document.getElementById('canvas-tile');
+  function getPixelIndex(e) {
+    var rect = cv.getBoundingClientRect();
+    var mx = e.clientX - rect.left;
+    var my = e.clientY - rect.top;
+    var col = Math.floor((mx - 192) / 16);
+    var row = Math.floor((my - 112) / 16);
+    if (col < 0 || col >= 16 || row < 0 || row >= 16) return -1;
+    return row * 16 + col;
+  }
+  function paint(e) {
+    var idx = getPixelIndex(e);
+    if (idx < 0) return;
+    var tile = project.tiles[tileEditor.editingTileId];
+    if (!tile || !tile.pixels) return;
+    tile.pixels[idx] = e.button === 2 ? 255 : tileEditor.selectedColor;
+    renderCurrentMode();
+  }
+  cv.addEventListener('mousedown', function(e) {
+    tileEditor.mouseDown = true;
+    paint(e);
+  });
+  cv.addEventListener('mousemove', function(e) {
+    if (tileEditor.mouseDown) paint(e);
+  });
+  cv.addEventListener('mouseup', function() {
+    tileEditor.mouseDown = false;
+  });
+  cv.addEventListener('mouseleave', function() {
+    tileEditor.mouseDown = false;
+  });
+  cv.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+  });
+})();
+
+// Sprite canvas mouse handlers
+(function() {
+  var cv = document.getElementById('canvas-sprite');
+  function getSpritePixelIndex(e) {
+    var rect = cv.getBoundingClientRect();
+    var mx = e.clientX - rect.left;
+    var my = e.clientY - rect.top;
+    var col = Math.floor((mx - 192) / 14);
+    var row = Math.floor((my - 16) / 14);
+    if (col < 0 || col >= 16 || row < 0 || row >= 32) return -1;
+    return row * 16 + col;
+  }
+  function paintSprite(e) {
+    var idx = getSpritePixelIndex(e);
+    if (idx < 0) return;
+    var sp = project.playerSprite;
+    if (!sp || !sp.pixels) return;
+    sp.pixels[idx] = e.button === 2 ? 255 : spriteEditor.selectedColor;
+    renderCurrentMode();
+  }
+  cv.addEventListener('mousedown', function(e) {
+    spriteEditor.mouseDown = true;
+    paintSprite(e);
+  });
+  cv.addEventListener('mousemove', function(e) {
+    if (spriteEditor.mouseDown) paintSprite(e);
+  });
+  cv.addEventListener('mouseup', function() {
+    spriteEditor.mouseDown = false;
+  });
+  cv.addEventListener('mouseleave', function() {
+    spriteEditor.mouseDown = false;
+  });
+  cv.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+  });
+})();
+
+// Level canvas mouse handlers
+(function() {
+  var cv = document.getElementById('canvas-level');
+  function getLevelSize() {
+    var lvl = project.level;
+    return { cols: (lvl && lvl[0]) ? lvl[0].length : 20, rows: lvl ? lvl.length : 15 };
+  }
+  function getOffset() {
+    var s = getLevelSize();
+    return {
+      x: Math.max(0, Math.floor((640 - s.cols * 16) / 2)) - levelEditor.scrollX,
+      y: Math.max(0, Math.floor((480 - s.rows * 16) / 2)) - levelEditor.scrollY
+    };
+  }
+  function getTileCoords(e) {
+    var rect = cv.getBoundingClientRect();
+    var mx = e.clientX - rect.left;
+    var my = e.clientY - rect.top;
+    var off = getOffset();
+    var col = Math.floor((mx - off.x) / 16);
+    var row = Math.floor((my - off.y) / 16);
+    var s = getLevelSize();
+    if (col < 0 || col >= s.cols || row < 0 || row >= s.rows) return null;
+    return { col: col, row: row };
+  }
+  function handlePlace(e) {
+    var coords = getTileCoords(e);
+    if (!coords) return;
+    var col = coords.col, row = coords.row;
+    if (levelEditor.placingStart) {
+      project.playerStart = { col: col, row: row };
+      levelEditor.placingStart = false;
+      modeInit.level();
+    } else if (e.button === 2 || !levelEditor.placing) {
+      project.level[row][col] = 0;
+    } else {
+      project.level[row][col] = levelEditor.selectedTileId;
+    }
+    renderCurrentMode();
+  }
+  cv.addEventListener('mousedown', function(e) {
+    levelEditor.mouseDown = true;
+    handlePlace(e);
+  });
+  cv.addEventListener('mousemove', function(e) {
+    var coords = getTileCoords(e);
+    if (coords) {
+      levelEditor.hoverCol = coords.col;
+      levelEditor.hoverRow = coords.row;
+    } else {
+      levelEditor.hoverCol = -1;
+      levelEditor.hoverRow = -1;
+    }
+    if (levelEditor.mouseDown) handlePlace(e);
+    renderCurrentMode();
+  });
+  cv.addEventListener('mouseup', function() {
+    levelEditor.mouseDown = false;
+  });
+  cv.addEventListener('mouseleave', function() {
+    levelEditor.mouseDown = false;
+    levelEditor.hoverCol = -1;
+    levelEditor.hoverRow = -1;
+    renderCurrentMode();
+  });
+  cv.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+  });
+  cv.addEventListener('wheel', function(e) {
+    var s = getLevelSize();
+    var maxScrollX = Math.max(0, s.cols * 16 - 640);
+    var maxScrollY = Math.max(0, s.rows * 16 - 480);
+    levelEditor.scrollX = Math.max(0, Math.min(levelEditor.scrollX + e.deltaX, maxScrollX));
+    levelEditor.scrollY = Math.max(0, Math.min(levelEditor.scrollY + e.deltaY, maxScrollY));
+    renderCurrentMode();
+    e.preventDefault();
+  });
+})();
+
+function renderCurrentMode() {
+  var canvas = canvases[currentMode];
+  var ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, 640, 480);
+  if (currentMode === 'tile') {
+    ctx.fillStyle = '#222222';
+    ctx.fillRect(190, 110, 260, 260);
+    var tile = project.tiles[tileEditor.editingTileId];
+    if (tile && tile.pixels) {
+      drawPixelGrid(ctx, 192, 112, 16, tile.pixels, 16, 16, project.palette, true);
+    }
+    ctx.strokeStyle = '#FF0000';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(192, 112, 256, 256);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '14px Courier New, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Pixel grid (16x16) — paint with palette', 320, 390);
+  } else if (currentMode === 'sprite') {
+    if (project.playerSprite && project.playerSprite.pixels) {
+      drawPixelGrid(ctx, 192, 16, 14, project.playerSprite.pixels, 16, 32, project.palette, true);
+    }
+    ctx.strokeStyle = '#FF0000';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(192, 16, 224, 448);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '14px Courier New, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Sprite (16x32) — draw the player character', 320, 6);
+    // Update toolbar preview
+    var pv = document.getElementById('preview-sprite');
+    if (pv) {
+      var pctx = pv.getContext('2d');
+      pctx.fillStyle = '#000';
+      pctx.fillRect(0, 0, 32, 64);
+      if (project.playerSprite && project.playerSprite.pixels) {
+        drawPixelGrid(pctx, 0, 0, 2, project.playerSprite.pixels, 16, 32, project.palette, false);
+      }
+    }
+  } else if (currentMode === 'level') {
+    var lvl = project.level;
+    var cols = (lvl && lvl[0]) ? lvl[0].length : 20;
+    var rows = lvl ? lvl.length : 15;
+    var tileW = cols * 16, tileH = rows * 16;
+    var baseX = Math.max(0, Math.floor((640 - tileW) / 2));
+    var baseY = Math.max(0, Math.floor((480 - tileH) / 2));
+    var offX = baseX - levelEditor.scrollX;
+    var offY = baseY - levelEditor.scrollY;
+    // Draw visible tiles only
+    var startCol = Math.max(0, Math.floor(-offX / 16));
+    var endCol = Math.min(cols, Math.ceil((640 - offX) / 16));
+    var startRow = Math.max(0, Math.floor(-offY / 16));
+    var endRow = Math.min(rows, Math.ceil((480 - offY) / 16));
+    for (var r = startRow; r < endRow; r++) {
+      for (var c = startCol; c < endCol; c++) {
+        var tid = project.level[r][c];
+        var t = project.tiles[tid];
+        if (t && t.pixels) {
+          drawPixelGrid(ctx, offX + c * 16, offY + r * 16, 1, t.pixels, 16, 16, project.palette, false);
+        }
+      }
+    }
+    // Grid lines (only visible area)
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 0.5;
+    for (var r = 0; r <= rows; r++) {
+      var gy = offY + r * 16;
+      if (gy >= 0 && gy <= 480) {
+        ctx.beginPath();
+        ctx.moveTo(Math.max(0, offX), gy);
+        ctx.lineTo(Math.min(640, offX + tileW), gy);
+        ctx.stroke();
+      }
+    }
+    for (var c = 0; c <= cols; c++) {
+      var gx = offX + c * 16;
+      if (gx >= 0 && gx <= 640) {
+        ctx.beginPath();
+        ctx.moveTo(gx, Math.max(0, offY));
+        ctx.lineTo(gx, Math.min(480, offY + tileH));
+        ctx.stroke();
+      }
+    }
+    // Player start marker
+    var ps = project.playerStart;
+    if (ps) {
+      var cx = offX + ps.col * 16 + 8;
+      var cy = offY + ps.row * 16 + 8;
+      ctx.fillStyle = '#FF0000';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 10px Courier New, monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('S', cx, cy);
+    }
+    // Hover preview
+    if (levelEditor.hoverCol >= 0 && levelEditor.hoverRow >= 0 && levelEditor.selectedTileId > 0 && !levelEditor.placingStart) {
+      var ht = project.tiles[levelEditor.selectedTileId];
+      if (ht && ht.pixels) {
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        drawPixelGrid(ctx, offX + levelEditor.hoverCol * 16, offY + levelEditor.hoverRow * 16, 1, ht.pixels, 16, 16, project.palette, false);
+        ctx.restore();
+      }
+    }
+  } else if (currentMode === 'play') {
+    renderPlay(ctx);
+  } else {
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '24px Courier New, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    var names = { level: 'Level Editor', play: 'Play Mode' };
+    ctx.fillText(names[currentMode], 320, 240);
+  }
+}
+
+function updateDefaultTiles() {
+  project.tiles[0] = { id: 0, pixels: null, width: 16, height: 16, name: 'Air' };
+
+  // Ground: brown with green grass accent
+  var ground = new Uint8Array(256);
+  ground.fill(6);
+  for (var gc = 0; gc < 16; gc++) ground[gc] = 4;
+  project.tiles[1] = { id: 1, pixels: ground, width: 16, height: 16, name: 'Ground' };
+
+  // Brick: red brick with brown mortar
+  var brick = new Uint8Array(256);
+  brick.fill(2);
+  function br(r, c, v) { brick[r * 16 + c] = v; }
+  function brr(r, v) { for (var c = 0; c < 16; c++) br(r, c, v); }
+  for (var r = 0; r < 3; r++) { br(r, 7, 6); }
+  brr(3, 6);
+  for (var r = 4; r < 7; r++) { br(r, 3, 6); }
+  brr(7, 6);
+  for (var r = 8; r < 11; r++) { br(r, 7, 6); }
+  brr(11, 6);
+  for (var r = 12; r < 15; r++) { br(r, 3, 6); }
+  brr(15, 6);
+  project.tiles[2] = { id: 2, pixels: brick, width: 16, height: 16, name: 'Brick' };
+
+  // Question: yellow with ? mark
+  var question = new Uint8Array(256);
+  question.fill(5);
+  var qm = [[4,6],[4,9],[5,7],[5,8],[6,8],[7,7],[8,6],[8,7],[9,6],[9,7],[11,7]];
+  for (var qi = 0; qi < qm.length; qi++) { question[qm[qi][0] * 16 + qm[qi][1]] = 0; }
+  project.tiles[3] = { id: 3, pixels: question, width: 16, height: 16, name: 'Question' };
+
+  // Pipe Top: green (#00A800) with black rim outline
+  var pipeTop = new Uint8Array(256);
+  pipeTop.fill(4); // green
+  for (var r = 0; r < 16; r++) for (var c = 0; c < 16; c++) {
+    if (c < 3 || c > 12) pipeTop[r*16+c] = 0;                      // outer outline
+    else if (c < 4 || c > 11) {                                      // inner rim / shaft edge
+      if (r < 2) pipeTop[r*16+c] = 4;                                // rim is solid green
+      else pipeTop[r*16+c] = 0;                                       // shaft edges black
+    }
+  }
+  project.tiles[4] = { id: 4, pixels: pipeTop, width: 16, height: 16, name: 'PipeTop' };
+
+  // Pipe Body: green shaft with black side outlines
+  var pipeBody = new Uint8Array(256);
+  pipeBody.fill(4); // green
+  for (var r = 0; r < 16; r++) for (var c = 0; c < 16; c++) {
+    if (c < 3 || c > 12) pipeBody[r*16+c] = 0;  // outer outline
+    else if (c < 4 || c > 11) pipeBody[r*16+c] = 0; // inner edge
+  }
+  project.tiles[5] = { id: 5, pixels: pipeBody, width: 16, height: 16, name: 'PipeBody' };
+
+  // Mario 1-1 inspired level: 64x15
+  var COLS = 64, ROWS = 15;
+  project.level = [];
+  for (var r = 0; r < ROWS; r++) {
+    project.level[r] = [];
+    for (var c = 0; c < COLS; c++) project.level[r][c] = 0;
+  }
+
+  // Helper: fill area with a tile
+  function fillRect(col, row, w, h, id) {
+    for (var rr = row; rr < row + h; rr++)
+      for (var cc = col; cc < col + w; cc++)
+        if (rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS) project.level[rr][cc] = id;
+  }
+
+  // Ground (row 14) with gaps
+  fillRect(0, 14, 8, 1, 1);   // cols 0-7  — starting area
+  fillRect(11, 14, 21, 1, 1); // cols 11-31
+  fillRect(35, 14, 9, 1, 1);  // cols 35-43
+  fillRect(47, 14, 17, 1, 1); // cols 47-63
+
+  // Gap 1: cols 8-10 (between starting area and middle)
+  // Gap 2: cols 32-34
+  // Gap 3: cols 44-46
+
+  // First ? block cluster (3 tiles above ground)
+  fillRect(4, 11, 1, 1, 3); // ? block at col 4, row 11
+  fillRect(5, 11, 2, 1, 2); // 2 bricks at col 5-6, row 11
+  // Easy-reach ? block at row 12 (2 tiles above ground) for testing
+  fillRect(7, 12, 1, 1, 3); // ? block at col 7, row 12
+
+  // Question block above second ground section
+  fillRect(16, 11, 1, 1, 3);
+  fillRect(14, 11, 1, 1, 2); // brick left of ?
+  fillRect(17, 11, 1, 1, 2); // brick right of ?
+
+  // Elevated brick platform (after first gap)
+  fillRect(21, 12, 3, 1, 2); // 3 bricks at row 12
+
+  // Pipe 1: 2 tiles tall, 2 tiles wide at cols 26-27 (raised from row 10 to 12 so Mario can jump over)
+  fillRect(26, 12, 2, 1, 4); // PipeTop at row 12
+  fillRect(26, 13, 2, 1, 5); // PipeBody at row 13
+
+  // Second ? + brick cluster
+  fillRect(38, 11, 1, 1, 3);
+  fillRect(39, 11, 2, 1, 2);
+
+  // Pipe 2: 2 tiles tall, 2 tiles wide at cols 41-42
+  fillRect(41, 12, 2, 1, 4); // PipeTop
+  fillRect(41, 13, 2, 1, 5); // PipeBody
+
+  // Staircase near end (4 steps ascending, cols 50-56)
+  // Each step is offset right so it's climbable from the left
+  fillRect(50, 13, 2, 1, 2); // first step (widest base)
+  fillRect(52, 12, 1, 1, 2); // second step
+  fillRect(53, 11, 1, 1, 2); // third step
+  fillRect(54, 10, 1, 1, 2); // fourth step (top)
+
+  // Flagpole area (cols 58-59) — pole from row 4 to 13, ground at bottom
+  for (var fp = 4; fp <= 13; fp++) { fillRect(58, fp, 1, 1, 8); } // pole tile
+  fillRect(58, 4, 1, 1, 9); // flag at top
+
+  // Player start
+  project.playerStart = { col: 2, row: 13 };
+
+  // Player sprite: Mario (16x32)
+  var marioSprite = new Uint8Array(512);
+  marioSprite.fill(255);
+  function setPixels(arr, w, coords) {
+    for (var i = 0; i < coords.length; i++) {
+      arr[coords[i][0] * w + coords[i][1]] = coords[i][2];
+    }
+  }
+  function shiftRows(data, offset) {
+    for (var i = 0; i < data.length; i++) data[i] = [data[i][0] + offset, data[i][1], data[i][2]];
+    return data;
+  }
+  var marioData = shiftRows([
+    [0,4,2],[0,5,2],[0,6,2],[0,7,2],[0,8,2],[0,9,2],[0,10,2],
+    [1,3,2],[1,4,2],[1,5,2],[1,6,2],[1,7,2],[1,8,2],[1,9,2],[1,10,2],[1,11,2],
+    [2,3,2],[2,4,2],[2,5,2],[2,6,2],[2,7,2],[2,8,2],[2,9,2],[2,10,2],[2,11,2],
+    [3,3,2],[3,4,2],[3,5,2],[3,6,2],[3,7,2],[3,8,2],[3,9,2],[3,10,2],[3,11,2],
+    [4,4,7],[4,5,7],[4,6,7],[4,7,7],[4,8,7],[4,9,7],[4,10,7],[4,11,7],
+    [5,4,7],[5,5,7],[5,6,1],[5,7,0],[5,8,0],[5,9,1],[5,10,7],[5,11,7],
+    [6,5,7],[6,6,0],[6,7,1],[6,8,1],[6,9,0],[6,10,7],
+    [7,5,7],[7,6,7],[7,7,7],[7,8,7],[7,9,7],[7,10,7],
+    [8,4,2],[8,5,2],[8,6,2],[8,7,2],[8,8,2],[8,9,2],[8,10,2],[8,11,2],
+    [9,4,2],[9,5,2],[9,6,2],[9,7,2],[9,8,2],[9,9,2],[9,10,2],[9,11,2],
+    [10,4,3],[10,5,3],[10,6,3],[10,7,3],[10,8,3],[10,9,3],[10,10,3],[10,11,3],
+    [11,3,3],[11,4,3],[11,7,3],[11,8,3],[11,11,3],[11,12,3],
+    [12,3,3],[12,4,3],[12,5,3],[12,6,3],[12,7,3],[12,8,3],[12,9,3],[12,10,3],[12,11,3],[12,12,3],
+    [13,3,3],[13,4,3],[13,5,3],[13,6,3],[13,7,3],[13,8,3],[13,9,3],[13,10,3],[13,11,3],[13,12,3],
+    [14,4,3],[14,5,3],[14,6,3],[14,7,3],[14,8,3],[14,9,3],[14,10,3],[14,11,3],
+    [15,4,3],[15,5,3],[15,6,3],[15,7,3],[15,8,3],[15,9,3],[15,10,3],[15,11,3],
+    [16,4,3],[16,5,3],[16,6,3],[16,7,3],[16,8,3],[16,9,3],[16,10,3],[16,11,3],
+    [17,4,3],[17,5,3],[17,6,3],[17,7,3],[17,8,3],[17,9,3],[17,10,3],[17,11,3],
+    [18,3,6],[18,4,6],[18,5,6],[18,10,6],[18,11,6],[18,12,6],
+    [19,3,6],[19,4,6],[19,5,6],[19,10,6],[19,11,6],[19,12,6]
+  ], 12);
+  setPixels(marioSprite, 16, marioData);
+  project.playerSprite = { pixels: marioSprite, width: 16, height: 32, name: 'Mario' };
+
+  // Goomba enemy sprite (16x16) as tile 6
+  var enemyPixels = new Uint8Array(256);
+  enemyPixels.fill(255);
+  var enemyData = [
+    [1,4,6],[1,5,6],[1,6,6],[1,7,6],[1,8,6],[1,9,6],[1,10,6],
+    [2,3,6],[2,4,6],[2,5,6],[2,6,6],[2,7,6],[2,8,6],[2,9,6],[2,10,6],[2,11,6],[2,12,6],
+    [3,3,6],[3,4,6],[3,5,6],[3,6,0],[3,7,0],[3,8,0],[3,9,0],[3,10,6],[3,11,6],[3,12,6],
+    [4,3,6],[4,4,6],[4,5,1],[4,6,1],[4,7,0],[4,8,0],[4,10,1],[4,11,1],[4,12,6],
+    [5,3,6],[5,4,6],[5,5,6],[5,6,6],[5,7,6],[5,8,6],[5,9,6],[5,10,6],[5,11,6],[5,12,6],
+    [6,3,6],[6,4,6],[6,5,6],[6,6,6],[6,7,6],[6,8,6],[6,9,6],[6,10,6],[6,11,6],[6,12,6],
+    [7,4,6],[7,5,6],[7,6,6],[7,7,6],[7,8,6],[7,9,6],[7,10,6],[7,11,6],
+    [8,4,6],[8,5,6],[8,6,6],[8,7,6],[8,8,6],[8,9,6],[8,10,6],[8,11,6],
+    [9,3,0],[9,4,6],[9,5,0],[9,6,0],[9,9,0],[9,10,0],[9,11,6],[9,12,0],
+    [10,2,0],[10,3,0],[10,4,6],[10,5,0],[10,8,0],[10,9,6],[10,10,0],[10,11,0],[10,12,0],[10,13,0]
+  ];
+  setPixels(enemyPixels, 16, enemyData);
+  project.tiles[6] = { id: 6, pixels: enemyPixels, width: 16, height: 16, name: 'Goomba' };
+
+  // Used Block sprite (16x16) as tile 7
+  var usedBlock = new Uint8Array(256);
+  usedBlock.fill(6);
+  for (var r = 0; r < 16; r++) for (var c = 0; c < 16; c++) {
+    if (r === 0 || r === 15 || c === 0 || c === 15) usedBlock[r*16+c] = 0;
+    else if (r % 4 === 3 || c % 4 === 3) usedBlock[r*16+c] = 0;
+  }
+  project.tiles[7] = { id: 7, pixels: usedBlock, width: 16, height: 16, name: 'UsedBlock' };
+
+  // Pole tile (id:8) — thin gray vertical post
+  var poleTile = new Uint8Array(256);
+  poleTile.fill(255);
+  for (var r = 0; r < 16; r++) poleTile[r*16+7] = 1; poleTile[r*16+8] = 1;
+  project.tiles[8] = { id: 8, pixels: poleTile, width: 16, height: 16, name: 'Pole' };
+
+  // Flag tile (id:9) — yellow flag on pole
+  var flagTile = new Uint8Array(256);
+  flagTile.fill(255);
+  for (var r = 0; r < 16; r++) flagTile[r*16+7] = 1; flagTile[r*16+8] = 1; // pole
+  for (var f = 0; f < 6; f++) { flagTile[(2+f)*16+(3+f)] = 5; flagTile[(2+f)*16+(4+f)] = 5; } // yellow flag tip
+  project.tiles[9] = { id: 9, pixels: flagTile, width: 16, height: 16, name: 'Flag' };
+
+  // Enemy patrol points (col, row)
+  project.enemies = [
+    { col: 10, row: 13, dir: -1 },
+    { col: 23, row: 13, dir: -1 },
+    { col: 48, row: 13, dir: -1 }
+  ];
+}
+
+function saveProject() {
+  var data = {
+    tiles: project.tiles.map(function(t) {
+      if (!t) return null;
+      return {
+        id: t.id,
+        pixels: t.pixels ? Array.from(t.pixels) : null,
+        width: t.width,
+        height: t.height,
+        name: t.name
+      };
+    }),
+    level: project.level,
+    playerSprite: project.playerSprite ? {
+      pixels: project.playerSprite.pixels ? Array.from(project.playerSprite.pixels) : null,
+      width: project.playerSprite.width,
+      height: project.playerSprite.height
+    } : null,
+    playerStart: project.playerStart,
+    palette: project.palette,
+    metadata: project.metadata,
+    enemies: project.enemies
+  };
+  var json = JSON.stringify(data, null, 2);
+  var blob = new Blob([json], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = (project.metadata.name || 'level') + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function loadProject(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      var data = JSON.parse(ev.target.result);
+      if (data.tiles) {
+        for (var i = 0; i < data.tiles.length; i++) {
+          if (data.tiles[i] && data.tiles[i].pixels) {
+            data.tiles[i].pixels = new Uint8Array(data.tiles[i].pixels);
+          }
+        }
+      }
+      if (data.playerSprite && data.playerSprite.pixels) {
+        data.playerSprite.pixels = new Uint8Array(data.playerSprite.pixels);
+      }
+      Object.assign(project, data);
+      if (!project.tiles || project.tiles.length === 0 || !project.level || project.level.length === 0) {
+        updateDefaultTiles();
+      }
+      switchMode(currentMode);
+    } catch (err) {
+      alert('Failed to load project: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function exportHtml() {
+  var data = {
+    tiles: project.tiles.map(function(t) {
+      if (!t) return null;
+      return {
+        id: t.id,
+        pixels: t.pixels ? Array.from(t.pixels) : null,
+        width: t.width,
+        height: t.height,
+        name: t.name
+      };
+    }),
+    level: project.level,
+    playerSprite: project.playerSprite ? {
+      pixels: project.playerSprite.pixels ? Array.from(project.playerSprite.pixels) : null,
+      width: project.playerSprite.width,
+      height: project.playerSprite.height
+    } : null,
+    playerStart: project.playerStart,
+    palette: project.palette,
+    enemies: project.enemies
+  };
+  var jsonStr = JSON.stringify(data);
+  var safeName = (project.metadata.name || 'Game').replace(/[<>]/g, '').replace(/&/g, '&amp;');
+  var html = '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<title>' + safeName + '</title>\n<style>\n*{margin:0;padding:0;box-sizing:border-box}\nbody{background:#111;display:flex;justify-content:center;align-items:center;min-height:100vh;overflow:hidden}\ncanvas{image-rendering:pixelated;image-rendering:crisp-edges;width:min(100vw,100vh*1.333)}\n</style>\n</head>\n<body>\n<canvas id="g" width="320" height="240"></canvas>\n<script>\nvar d=' + jsonStr + ';\nvar cv=document.getElementById("g"),ctx=cv.getContext("2d"),pl=d.palette,tl=d.tiles,lv=d.level,ps=d.playerSprite,pt=d.playerStart,en=d.enemies||[];\nfunction px(ox,oy,p,w,h){for(var r=0;r<h;r++){for(var c=0;c<w;c++){var i=r*w+c,v=p[i];if(v!==null&&v!==undefined&&v>=0&&v<pl.length&&v!==255){ctx.fillStyle=pl[v];ctx.fillRect(ox+c,oy+r,1,1)}}}}\nvar G=0.5,S=3,J=-8,M=10,PW=12,PH=28;\nvar p={x:pt.col*16+2,y:pt.row*16+2,vx:0,vy:0,og:false,big:false},k={},cx=0,hb={},items=[],enemies=[];\nif(en)for(var si=0;si<en.length;si++){var se=en[si];enemies.push({x:se.col*16+2,y:se.row*16+2,vx:se.dir*0.8,alive:true,width:12,height:14})}\nfunction gC(r,c){if(r<0||r>=lv.length||c<0||c>=lv[0].length)return-1;return lv[r][c]}\nfunction gS(r,c){return gC(r,c)>0}\nfunction fl(){if(p.y>lv.length*16+200){p.x=pt.col*16+2;p.y=pt.row*16+2;p.vx=0;p.vy=0}}\nfunction cbh(){if(p.vy>=0)return;var hr=Math.floor(p.y/16),lc=Math.floor(p.x/16),rc=Math.floor((p.x+PW-1)/16);for(var c=lc;c<=rc;c++){var key=c+"_"+hr;if(hb[key])continue;var tid=(lv[hr]&&lv[hr][c])||0;if(tid===3){hb[key]=true;lv[hr][c]=7;items.push({x:c*16,y:(hr-1)*16,vx:0,vy:-2,type:"mushroom",active:true,rising:true,riseTarget:(hr-1)*16})}}}\nfunction up(){var l=k["ArrowLeft"]||k["KeyA"],r=k["ArrowRight"]||k["KeyD"],j=k["Space"]||k["ArrowUp"]||k["KeyW"];\nif(l)p.vx=-S;else if(r)p.vx=S;else p.vx=0;\nif(j&&p.og){p.vy=J;p.og=false}\nif(!j&&p.vy<0)p.vy=0;\np.vy+=G;if(p.vy>M)p.vy=M;\np.x+=p.vx;\nvar t=Math.floor(p.y/16),b=Math.floor((p.y+PH-1)/16),le=Math.floor(p.x/16),ri=Math.floor((p.x+PW-1)/16);\nfor(var rr=t;rr<=b;rr++){for(var cc=le;cc<=ri;cc++){if(gS(rr,cc)){if(p.vx>0)p.x=cc*16-PW;else if(p.vx<0)p.x=(cc+1)*16;p.vx=0;rr=b+1;break}}}}\np.y+=p.vy;\nt=Math.floor(p.y/16);b=Math.floor((p.y+PH-1)/16);le=Math.floor(p.x/16);ri=Math.floor((p.x+PW-1)/16);p.og=false;\ncbh();\nfor(rr=t;rr<=b;rr++){for(cc=le;cc<=ri;cc++){if(gS(rr,cc)){if(p.vy>0){p.y=rr*16-PH;p.vy=0;p.og=true}else if(p.vy<0){p.y=(rr+1)*16;p.vy=0}rr=b+1;break}}}\nfl();\nfor(var ei=0;ei<enemies.length;ei++){var e=enemies[ei];if(!e.alive)continue;e.x+=e.vx;var fc,bc;if(e.vx>0){fc=Math.floor((e.x+e.width)/16);bc=Math.floor((e.x+e.width)/16)}else{fc=Math.floor(e.x/16);bc=Math.floor(e.x/16)}var er=Math.floor((e.y+e.height-1)/16);var br=er+1;if(gS(fc,er)||br>=lv.length||!gS(bc,br))e.vx=-e.vx}\nfor(var ei=0;ei<enemies.length;ei++){var e=enemies[ei];if(!e.alive)continue;var px=p.x+2,py=p.y+4;if(px<e.x+e.width&&px+PW>e.x&&py<e.y+e.height&&py+PH>e.y){var pb=py+PH,et=e.y,prev=pb-p.vy;if(p.vy>0&&prev<=et+4){e.alive=false;p.vy=-6}else{if(p.big){p.big=false;if(p.x<e.x)p.x=e.x-PW-2;else p.x=e.x+e.width-2}else{p.x=pt.col*16+2;p.y=pt.row*16+2;p.vx=0;p.vy=0}}}}\nfor(var ii=0;ii<items.length;ii++){var item=items[ii];if(!item.active)continue;if(item.rising){item.y+=item.vy;if(item.y<=item.riseTarget){item.rising=false;item.vy=0;item.vx=1.5}}else{item.x+=item.vx;var ir=Math.floor((item.y+14)/16),ic=Math.floor((item.x+(item.vx>0?14:0))/16);if(gS(ic,ir))item.vx=-item.vx}var ipx=p.x+2,ipy=p.y+4;if(item.active&&ipx<item.x+16&&ipx+PW>item.x&&ipy<item.y+16&&ipy+PH>item.y){if(item.type==="mushroom"){p.big=true;item.active=false}}}\nvar lw=lv[0].length*16,tcx=p.x-160+PW/2;cx=Math.max(0,Math.min(tcx,lw-320))\n}\nfunction dr(){ctx.fillStyle="#5c94fc";ctx.fillRect(0,0,320,240);\nfor(var r=0;r<lv.length;r++){for(var c=0;c<lv[r].length;c++){var tid=lv[r][c],t=tl[tid];if(t&&t.pixels)px(Math.floor(c*16-cx),Math.floor(r*16),t.pixels,16,16)}}\nfor(var ei=0;ei<enemies.length;ei++){var e=enemies[ei];if(!e.alive)continue;var et=tl[6];if(et&&et.pixels)px(e.x-cx,e.y,et.pixels,16,16)}\nfor(var ii=0;ii<items.length;ii++){var item=items[ii];if(!item.active)continue;ctx.fillStyle="#FF0000";ctx.fillRect(item.x-cx,item.y,16,8);ctx.fillStyle="#FFFFFF";ctx.fillRect(item.x+4-cx,item.y+8,8,8)}\nif(ps&&ps.pixels)px(p.x-2-cx,p.y-2,ps.pixels,16,32)}\nfunction lp(){up();dr();requestAnimationFrame(lp)}\naddEventListener("keydown",function(e){k[e.code]=true;if(e.code==="Space"||e.code==="ArrowUp"||e.code==="ArrowDown")e.preventDefault()});\naddEventListener("keyup",function(e){k[e.code]=false;if(e.code==="Space"||e.code==="ArrowUp"||e.code==="ArrowDown")e.preventDefault()});\nlp();\n</scr' + 'ipt>\n</body>\n</html>';
+  var blob = new Blob([html], { type: 'text/html' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = (project.metadata.name || 'game') + '.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function testFixture() {
+  project.tiles = [];
+  // Air tile
+  project.tiles[0] = { id: 0, pixels: null, width: 16, height: 16, name: 'Air' };
+  // Ground tile (brown fill)
+  var ground = new Uint8Array(256);
+  ground.fill(6);
+  project.tiles[1] = { id: 1, pixels: ground, width: 16, height: 16, name: 'Ground' };
+  // Brick tile (red fill)
+  var brick = new Uint8Array(256);
+  brick.fill(2);
+  project.tiles[2] = { id: 2, pixels: brick, width: 16, height: 16, name: 'Brick' };
+  // Build level 20x15
+  project.level = [];
+  for (var r = 0; r < 15; r++) {
+    project.level[r] = [];
+    for (var c = 0; c < 20; c++) {
+      project.level[r][c] = 0;
+    }
+  }
+  // Row 14: ground with gap at cols 8-9
+  for (var c = 0; c < 20; c++) {
+    if (c < 8 || c >= 10) {
+      project.level[14][c] = 1;
+    }
+  }
+  // Row 10: platform at cols 4-6
+  for (var c = 4; c <= 6; c++) {
+    project.level[10][c] = 1;
+  }
+  // Rows 12-14, cols 7-10: brick wall
+  for (var r = 12; r <= 14; r++) {
+    for (var c = 7; c <= 10; c++) {
+      project.level[r][c] = 2;
+    }
+  }
+  // Player start
+  project.playerStart = { col: 1, row: 13 };
+  // Player sprite (black silhouette)
+  var playerPixels = new Uint8Array(512);
+  playerPixels.fill(0);
+  project.playerSprite = { pixels: playerPixels, width: 16, height: 32, name: 'Player' };
+  project.enemies = [];
+}
+
+// Keyboard listeners for play mode
+document.addEventListener('keydown', function(e) {
+  playState.keys[e.code] = true;
+  if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'ArrowDown' || e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+    e.preventDefault();
+  }
+});
+document.addEventListener('keyup', function(e) {
+  playState.keys[e.code] = false;
+  if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'ArrowDown' || e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+    e.preventDefault();
+  }
+});
+
+function mainLoop() {
+  if (currentMode === 'play' && playState.running) {
+    updatePlay();
+    renderCurrentMode();
+  }
+  requestAnimationFrame(mainLoop);
+}
+
+if (window.location.search.includes('test=true')) {
+  testFixture();
+  window.__TEST__ = {
+    getPlayerPos: function() { return {x: playState.player.x, y: playState.player.y}; },
+    isGrounded: function() { return playState.player.onGround; },
+    getFrameCount: function() { return playState.frameCount; },
+    resetPlayState: function() {
+      playState.player.x = project.playerStart.col * 16 + 2;
+      playState.player.y = project.playerStart.row * 16 + 2;
+      playState.player.vx = 0;
+      playState.player.vy = 0;
+      playState.player.onGround = false;
+      playState.frameCount = 0;
+    }
+  };
+} else {
+  updateDefaultTiles();
+}
+switchMode('tile');
+mainLoop();
+</script>
+</body>
+</html>
