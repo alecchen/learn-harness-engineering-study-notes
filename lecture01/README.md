@@ -60,3 +60,20 @@ Uses the [Superpowers framework](https://github.com/obra/superpowers) as the har
 | Superpowers | Full agentic framework | Plan → Code → Review → Fix | Structured (reviews, test reports) | High |
 
 The spectrum shows a clear tradeoff: more harness = more reliable output = more tokens. The right choice depends on whether you need a quick sketch (solo), a solid first pass (grill-me), or production-quality code (superpowers).
+
+---
+
+## References
+
+- [Anthropic — Harness design for long-running apps](https://www.anthropic.com/engineering/harness-design-long-running-apps)
+- [OpenAI — Harness Engineering](https://openai.com/zh-Hant/index/harness-engineering/)
+- [SWE-bench](https://www.swebench.com/)
+- [Learn Harness Engineering (course)](https://walkinglabs.github.io/learn-harness-engineering/en/)
+- [mattpocock/skills — /grill-me](https://github.com/mattpocock/skills)
+- [obra/superpowers](https://github.com/obra/superpowers)
+
+## Note: AGENTS.md as a map, not an encyclopedia
+
+`AGENTS.md` (and similarly `SKILL.md`) should not be an exhaustive reference file. It should be a **brief map** that describes what references exist and where they live. The agent reads the map, then only fetches the references it actually needs for the task at hand.
+
+This principle reduces context usage and keeps the agent focused on the goal — the same way you wouldn't load every page of a textbook into working memory just to look up one formula.
