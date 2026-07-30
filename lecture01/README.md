@@ -63,17 +63,10 @@ The spectrum shows a clear tradeoff: more harness = more reliable output = more 
 
 ---
 
-## References
+## Key insight: AGENTS.md as a map, not an encyclopedia
 
-- [Anthropic — Harness design for long-running apps](https://www.anthropic.com/engineering/harness-design-long-running-apps)
-- [OpenAI — Harness Engineering](https://openai.com/zh-Hant/index/harness-engineering/)
-- [SWE-bench](https://www.swebench.com/)
-- [Learn Harness Engineering (course)](https://walkinglabs.github.io/learn-harness-engineering/en/)
-- [mattpocock/skills — /grill-me](https://github.com/mattpocock/skills)
-- [obra/superpowers](https://github.com/obra/superpowers)
+From reading [lecture 1](https://walkinglabs.github.io/learn-harness-engineering/zh-TW/lectures/lecture-01-why-capable-agents-still-fail/) and its reference to [OpenAI's Harness Engineering](https://openai.com/zh-Hant/index/harness-engineering/):
 
-## Note: AGENTS.md as a map, not an encyclopedia
+`AGENTS.md` should not be an exhaustive reference file. It should be a **brief map** pointing to available references. The agent reads the map, then only fetches the references it needs for the task at hand — reducing context usage and keeping focus on the goal.
 
-`AGENTS.md` (and similarly `SKILL.md`) should not be an exhaustive reference file. It should be a **brief map** that describes what references exist and where they live. The agent reads the map, then only fetches the references it actually needs for the task at hand.
-
-This principle reduces context usage and keeps the agent focused on the goal — the same way you wouldn't load every page of a textbook into working memory just to look up one formula.
+Same principle as `SKILL.md`: a concise entry point that directs the agent to check specific files in a `references/` directory rather than loading everything upfront.
