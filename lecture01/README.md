@@ -35,7 +35,7 @@ A single prompt to Claude asking it to build the game in one shot. No scaffoldin
 
 ### 2. Grill-me (skill-based harness)
 
-[`grill-me-2d-retro-game-maker/`](grill-me-2d-retro-game-maker/) — [`game.html`](grill-me-2d-retro-game-maker/game.html) ([session record](grill-me-2d-retro-game-maker/docs/session-grill-build-record.md))
+[`grill-me-2d-retro-game-maker/`](grill-me-2d-retro-game-maker/) — [`game.html`](grill-me-2d-retro-game-maker/game.html) ([README](grill-me-2d-retro-game-maker/README.md))
 
 Uses the [`/grill-me` skill](https://github.com/mattpocock/skills) as the harness. The skill defines a structured prompt sequence: it grills the user on requirements before writing code, validates the output against those requirements, and iterates on failure. The harness is the skill itself — it enforces a protocol the model follows.
 
@@ -43,7 +43,7 @@ Uses the [`/grill-me` skill](https://github.com/mattpocock/skills) as the harnes
 
 ### 3. Superpowers (framework-based harness)
 
-[`superpowers-2d-retro-game-maker/`](superpowers-2d-retro-game-maker/) — [`index.html`](superpowers-2d-retro-game-maker/index.html) ([session record](superpowers-2d-retro-game-maker/session-record.md), [spec](superpowers-2d-retro-game-maker/docs/superpowers/specs/2026-07-30-2d-retro-game-maker-design.md), [plan](superpowers-2d-retro-game-maker/docs/superpowers/plans/2026-07-30-2d-retro-game-maker.md), [8 task reports](superpowers-2d-retro-game-maker/.superpowers/sdd/2d-retro-game-maker/))
+[`superpowers-2d-retro-game-maker/`](superpowers-2d-retro-game-maker/) — [`index.html`](superpowers-2d-retro-game-maker/index.html) ([README](superpowers-2d-retro-game-maker/README.md), [spec](superpowers-2d-retro-game-maker/docs/superpowers/specs/2026-07-30-2d-retro-game-maker-design.md), [plan](superpowers-2d-retro-game-maker/docs/superpowers/plans/2026-07-30-2d-retro-game-maker.md), [8 task reports](superpowers-2d-retro-game-maker/.superpowers/sdd/2d-retro-game-maker/))
 
 Uses the [Superpowers framework](https://github.com/obra/superpowers) as the harness. Superpowers provides a complete agentic workflow: specification-driven development (SDD), structured task decomposition, planning, execution, review, and iteration loops. The harness orchestrates multiple model calls — one to plan, one to write, one to review, one to fix — each stage validating the output of the prior one.
 

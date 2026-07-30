@@ -1,3 +1,15 @@
+## Running It
+
+This uses ES modules (`<script type="module">`), so opening `index.html` directly from disk won't work — browsers block module scripts on `file://`. Serve it with any static file server:
+
+```sh
+cd /Users/alec/git/solo-2d-retro-game-maker
+python3 -m http.server 8080
+# then open http://localhost:8080
+```
+
+---
+
 # 2D Retro Game Maker — Implementation Retrospective
 
 ## Cost & Usage
