@@ -70,3 +70,21 @@ From reading [lecture 1](https://walkinglabs.github.io/learn-harness-engineering
 `AGENTS.md` should not be an exhaustive reference file. It should be a **brief map** pointing to available references. The agent reads the map, then only fetches the references it needs for the task at hand — reducing context usage and keeping focus on the goal.
 
 Same principle as `SKILL.md` in agent skills: a concise entry point that directs the agent to check specific files rather than loading everything upfront.
+
+---
+
+## Observation: Harness engineering vs development methodologies
+
+At first glance, harness engineering looks like **waterfall** — it emphasizes planning the harness upfront (task spec, verification, environment). But the actual loop is iterative:
+
+| Methodology | Loop | Shared with harness engineering |
+|-------------|------|--------------------------------|
+| **Waterfall** | Requirements → Design → Implementation → Verification | Looks similar on paper (spec first, then build, then verify), but waterfall assumes the spec is complete upfront. Harness engineering treats the spec as a hypothesis — you tighten it each iteration based on what the agent got wrong. |
+| **TDD** | Red → Green → Refactor | TDD is the closest parallel at the micro level: the test is the harness for one behavior. Harness engineering scales this to full agent tasks. In both, "what does done look like?" is the first question, not an afterthought. |
+| **Scrum** | Sprint → Review → Retro → Refine | Scrum's MVP-and-iterate is almost a direct map: MVP harness (minimum prompt + one check) → agent run = sprint → failure diagnosis = retro → fix the layer = backlog refinement. Each cycle tightens the system. |
+| **XP (Extreme Programming)** | Test-first, CI, pair programming, collective ownership | XP's engineering practices map to harness layers: CI is the verification layer, pair programming is similar to multi-agent review, collective ownership is akin to evolving the harness as a shared artifact. |
+| **Agile (general)** | Inspect & adapt | That's the essence of harness engineering. You don't design the perfect harness. You start small, observe where the agent fails, patch that layer, re-run. |
+
+The surface similarity to waterfall dissolves when you realize: **the harness itself is built incrementally, driven by failures.** You don't specify every check, every context document, every tool permission before the first agent run. You start with the minimum, see what breaks, and add what's missing. That's inspect-and-adapt, not big-design-upfront.
+
+The core mindset shift: when an agent fails, ask "which layer of my harness is weak?" — not "which better model do I need?"
