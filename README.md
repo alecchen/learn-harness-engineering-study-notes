@@ -12,4 +12,3 @@ This repo tracks my work through each lecture — coding exercises, experiments,
 ## Links
 
 - [Course site](https://walkinglabs.github.io/learn-harness-engineering/en/)
-- [Walking Labs](https://walkinglabs.github.io/)
