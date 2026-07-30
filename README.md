@@ -6,7 +6,7 @@ This repo tracks my work through each lecture — coding exercises, experiments,
 
 ## Structure
 
-- `lecture01/` — 2D Retro Game Maker (Harness Superpowers walkthrough, grilling, solo)
+- [`lecture01/`](lecture01/README.md) — 2D Retro Game Maker (Harness Superpowers walkthrough, grilling, solo)
 - More lectures to come...
 
 ## Links

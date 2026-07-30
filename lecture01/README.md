@@ -27,9 +27,14 @@ Inspired by [Anthropic's blog post on harness design for long-running apps](http
 
 ### 1. Solo (no harness)
 
-[`solo-2d-retro-game-maker/`](solo-2d-retro-game-maker/) — [`index.html`](solo-2d-retro-game-maker/index.html) ([spec](solo-2d-retro-game-maker/README.md))
+[`solo-2d-retro-game-maker/`](solo-2d-retro-game-maker/) — [`index.html`](solo-2d-retro-game-maker/index.html) ([README](solo-2d-retro-game-maker/README.md))
 
 A single prompt to Claude asking it to build the game in one shot. No scaffolding, no iterative feedback, no structured evaluation. The model produces what it produces in a single pass — whatever quality emerges is whatever the model guessed the user wanted.
+
+Requires a static file server to play (ES modules are blocked on `file://`):
+```sh
+python3 -m http.server 8080
+```
 
 **Result:** A basic game maker, but limited by the lack of iteration — the model had to infer intent with no chance to course-correct.
 
@@ -43,7 +48,7 @@ Uses the [`/grill-me` skill](https://github.com/mattpocock/skills) as the harnes
 
 ### 3. Superpowers (framework-based harness)
 
-[`superpowers-2d-retro-game-maker/`](superpowers-2d-retro-game-maker/) — [`index.html`](superpowers-2d-retro-game-maker/index.html) ([README](superpowers-2d-retro-game-maker/README.md), [spec](superpowers-2d-retro-game-maker/docs/superpowers/specs/2026-07-30-2d-retro-game-maker-design.md), [plan](superpowers-2d-retro-game-maker/docs/superpowers/plans/2026-07-30-2d-retro-game-maker.md), [8 task reports](superpowers-2d-retro-game-maker/.superpowers/sdd/2d-retro-game-maker/))
+[`superpowers-2d-retro-game-maker/`](superpowers-2d-retro-game-maker/) — [`index.html`](superpowers-2d-retro-game-maker/index.html) ([README](superpowers-2d-retro-game-maker/README.md))
 
 Uses the [Superpowers framework](https://github.com/obra/superpowers) as the harness. Superpowers provides a complete agentic workflow: specification-driven development (SDD), structured task decomposition, planning, execution, review, and iteration loops. The harness orchestrates multiple model calls — one to plan, one to write, one to review, one to fix — each stage validating the output of the prior one.
 
