@@ -69,4 +69,4 @@ From reading [lecture 1](https://walkinglabs.github.io/learn-harness-engineering
 
 `AGENTS.md` should not be an exhaustive reference file. It should be a **brief map** pointing to available references. The agent reads the map, then only fetches the references it needs for the task at hand — reducing context usage and keeping focus on the goal.
 
-Same principle as `SKILL.md`: a concise entry point that directs the agent to check specific files in a `references/` directory rather than loading everything upfront.
+Same principle as `SKILL.md` in agent skills: a concise entry point that directs the agent to check specific files rather than loading everything upfront.
