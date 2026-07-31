@@ -13,7 +13,7 @@ This repo tracks my work through each lecture — coding exercises, experiments,
 
 | Lecture | Issue | Status |
 |---------|-------|--------|
-| Lecture 01 | "HumanLayer: Skill Issue — Harness Engineering for Coding Agents" link in the Further Reading section returns 404<br>[old](https://humanlayer.dev/articles/harness-engineering-for-coding-agents/) => [new](https://www.humanlayer.dev/blog/skill-issue-harness-engineering-for-coding-agents) | [walkinglabs/learn-harness-engineering#59](https://github.com/walkinglabs/learn-harness-engineering/pull/59) |
+| Lecture 01 | "HumanLayer: Skill Issue — Harness Engineering for Coding Agents" link in the Further Reading section returns 404<br>[old](https://humanlayer.dev/articles/harness-engineering-for-coding-agents/) => [new](https://www.humanlayer.dev/blog/skill-issue-harness-engineering-for-coding-agents) | [![PR #59 state](https://img.shields.io/github/pulls/detail/state/walkinglabs/learn-harness-engineering/59)](https://github.com/walkinglabs/learn-harness-engineering/pull/59) |
 
 ---
 
