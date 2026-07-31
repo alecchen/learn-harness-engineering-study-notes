@@ -1,9 +1,9 @@
 ## Running It
 
-This uses ES modules (`<script type="module">`), so opening `index.html` directly from disk won't work — browsers block module scripts on `file://`. Serve it with any static file server:
+This uses ES modules (`<script type="module">`), so opening `index.html` directly from disk won't work. Browsers block module scripts on `file://`. Serve it with any static file server:
 
 ```sh
-cd /Users/alec/git/solo-2d-retro-game-maker
+cd lecture01/solo-2d-retro-game-maker
 python3 -m http.server 8080
 # then open http://localhost:8080
 ```
@@ -24,16 +24,16 @@ python3 -m http.server 8080
 | **Cost** | **$0.07** |
 | **Wall time** | **7m 30s** |
 
-The high cache hit rate (91.3%) reflects the lean-ctx MCP tools re-using cached file reads as each module was written in sequence — the renderer, data model, and palette data were read from cache by every subsequent editor module that imported them. Total build time from first prompt to last file write was 7 minutes 30 seconds — a single continuous pass with no iteration between phases.
+The high cache hit rate (91.3%) reflects the lean-ctx MCP tools re-using cached file reads as each module was written in sequence: the renderer, data model, and palette data were read from cache by every subsequent editor module that imported them. Total build time from first prompt to last file write was 7 minutes 30 seconds, a single continuous pass with no iteration between phases.
 
 ## Original Plan
 
 The goal was to build a self-contained 2D game maker application with four core features:
 
-1. **Level Editor** — place tiles and entities on a grid-based canvas
-2. **Sprite Editor** — draw pixel art sprites with frame management
-3. **Entity Behaviors** — attach AI state machines (patrol, chase, bounce, etc.) to placed entities
-4. **Playable Test Mode** — run the level as a real game with physics, collision, and player controls
+1. **Level Editor**: place tiles and entities on a grid-based canvas
+2. **Sprite Editor**: draw pixel art sprites with frame management
+3. **Entity Behaviors**: attach AI state machines (patrol, chase, bounce, etc.) to placed entities
+4. **Playable Test Mode**: run the level as a real game with physics, collision, and player controls
 
 **Data model** (designed before writing code):
 
@@ -53,18 +53,18 @@ Project
 
 ### Choice: Vanilla HTML + CSS + JavaScript (ES modules)
 
-No frameworks, no bundlers, no build tools.
+No frameworks, bundlers, or build tools.
 
-- **Zero dependencies** — no `npm install`, no lockfiles, no build step. Clone and open in a browser (or serve with any static file server).
-- **ES modules** (`type="module"`) — modern browser support, clean `import`/`export` syntax, deferred execution, no global namespace pollution. No bundler needed for an app of this size.
-- **Canvas 2D API** — the only reasonable choice for a pixel-art game maker. Full control over individual pixels, nearest-neighbor scaling (`image-rendering: pixelated`), and efficient tile-based rendering.
-- **localStorage API** — zero-setup persistence. The entire project (tiles, sprites, frames, levels, entity instances) serializes to JSON and survives page refresh.
+- **Zero dependencies**: no `npm install`, no lockfiles, no build step. Clone and open in a browser (or serve with any static file server).
+- **ES modules** (`type="module"`): modern browser support, clean `import`/`export` syntax, deferred execution, no global namespace pollution. No bundler needed for an app of this size.
+- **Canvas 2D API**: the only reasonable choice for a pixel-art game maker. Full control over individual pixels, nearest-neighbor scaling (`image-rendering: pixelated`), and efficient tile-based rendering.
+- **localStorage API**: zero-setup persistence. The entire project (tiles, sprites, frames, levels, entity instances) serializes to JSON and survives page refresh.
 
 **Rejected alternatives:**
-- **React/Vue/Svelte** — unnecessary abstraction for a canvas-focused app. The UI is a thin shell around the canvas; the canvas itself handles all the heavy drawing.
-- **TypeScript** — 84 JavaScript source files at 7.5 KB is trivially small. TypeScript's value proposition (catching type errors at scale) barely applies here. JSDoc comments would add noise.
-- **WebGL** — overkill for 2D pixel art at 320x240 internal resolution. Canvas 2D handles tile maps and sprite blitting at 60 fps with no optimization needed.
-- **IndexedDB** — overkill. The full project serializes to ~50-100 KB JSON. `localStorage` (5 MB limit) is more than sufficient for dozens of levels.
+- **React/Vue/Svelte**: unnecessary abstraction for a canvas-focused app. The UI is a thin shell around the canvas; the canvas itself handles all the heavy drawing.
+- **TypeScript**: 84 JavaScript source files at 7.5 KB is trivially small. TypeScript's value proposition (catching type errors at scale) barely applies here. JSDoc comments would add noise.
+- **WebGL**: overkill for 2D pixel art at 320x240 internal resolution. Canvas 2D handles tile maps and sprite blitting at 60 fps with no optimization needed.
+- **IndexedDB**: overkill. The full project serializes to ~50-100 KB JSON. `localStorage` (5 MB limit) is more than sufficient for dozens of levels.
 
 ## Implementation
 
@@ -72,21 +72,21 @@ No frameworks, no bundlers, no build tools.
 
 Defined the core data structures first. Every other module depends on these types. Key decisions:
 
-- **32-color palette** — NES-inspired with RGB hex strings. Enough variety without overwhelming a pixel artist.
-- **9 tile types** — Empty, Wall, Ground, Platform, Spike, Goal, Decor, Water, Brick. Each has `id`, `solid`, `deadly`, `color`, and `sprite` ref properties.
-- **3 default sprites** — player (16x16 humanoid), slime (16x16 blob), coin (16x16 with 2 animation frames). Each sprite stores pixel data as 2D arrays of palette indices (0 = transparent).
-- **5 behaviors** — idle, patrol, chase, bounce, float. Each with adjustable parameters (range, speed, height).
-- **5 entity types** — Player, Slime, Coin, Spike, Goal. Each references a behavior and a sprite.
+- **32-color palette**: NES-inspired with RGB hex strings. Enough variety without overwhelming a pixel artist.
+- **9 tile types**: Empty, Wall, Ground, Platform, Spike, Goal, Decor, Water, Brick. Each has `id`, `solid`, `deadly`, `color`, and `sprite` ref properties.
+- **3 default sprites**: player (16x16 humanoid), slime (16x16 blob), coin (16x16 with 2 animation frames). Each sprite stores pixel data as 2D arrays of palette indices (0 = transparent).
+- **5 behaviors**: idle, patrol, chase, bounce, float. Each with adjustable parameters (range, speed, height).
+- **5 entity types**: Player, Slime, Coin, Spike, Goal. Each references a behavior and a sprite.
 
-Sprites are stored as index arrays rather than raw RGBA — this keeps the data compact and makes recoloring trivial (swap the palette).
+Sprites are stored as index arrays rather than raw RGBA. This keeps the data compact and makes recoloring trivial (swap the palette).
 
 ### Phase 2: Renderer (`renderer.js`) — 10 minutes
 
 Low-level drawing primitives:
-- `renderTile` — draws a filled rectangle with a highlight edge (retro pseudo-3D look)
-- `renderSprite` — iterates over pixel data, maps palette indices to colors, draws each pixel as a scaled rectangle
-- `renderGrid` — thin grid overlay for the editor
-- `drawText` — monospace text overlay for HUD and coords
+- `renderTile`: draws a filled rectangle with a highlight edge (retro pseudo-3D look)
+- `renderSprite`: iterates over pixel data, maps palette indices to colors, draws each pixel as a scaled rectangle
+- `renderGrid`: thin grid overlay for the editor
+- `drawText`: monospace text overlay for HUD and coords
 
 The sprite renderer supports frame selection and horizontal flip (for directional movement).
 
@@ -119,7 +119,7 @@ Each behavior is a function `(entity, dt, level, player) → void` that reads/wr
 - **Bounce**: sine wave vertical oscillation with configurable height and speed.
 - **Float**: circular motion (cos/sin) with configurable radius and speed.
 
-This design is extensible — adding a new behavior means writing one function and adding it to the `BEHAVIORS` registry.
+This design is extensible: adding a new behavior means writing one function and adding it to the `BEHAVIORS` registry.
 
 ### Phase 6: Game Engine (`game-engine.js`) — 25 minutes
 
@@ -157,17 +157,17 @@ Dark theme with CRT-inspired aesthetics:
 - Tool buttons use a grid layout with a `.active` state that changes background to the accent color.
 - The sidebar panels show/hide based on the current editor mode via `display: none/block`.
 
-No CSS framework — 158 lines of hand-authored CSS.
+No CSS framework. 158 lines of hand-authored CSS.
 
-Verification section normalizing total build time to **7 minutes 30 seconds** from first prompt to last file write — single continuous pass with no iteration between phases.
+Verification section normalizing total build time to **7 minutes 30 seconds** from first prompt to last file write. Single continuous pass with no iteration between phases.
 
 ## Verification Strategy
 
 **Syntax validation**: All 7 JS modules pass `node --check` (Node.js parser validation). This catches any syntax errors before runtime.
 
-**Module resolution**: Verified each ES module resolves its imports correctly by fetching all files via HTTP server and confirming `curl` returns 200. Broke the `type="module"` rule once (accidental duplicate `app.js` load) — fixed by ensuring a single `<script type="module">` tag.
+**Module resolution**: Verified each ES module resolves its imports correctly by fetching all files via HTTP server and confirming `curl` returns 200. Broke the `type="module"` rule once (accidental duplicate `app.js` load). Fixed by ensuring a single `<script type="module">` tag.
 
-**Cannot use file://**: ES modules require `Content-Type: application/javascript` from a server — they fail silently on `file://` protocol. The app must be served (any static file server works).
+**Cannot use file://**: ES modules require `Content-Type: application/javascript` from a server. They fail silently on `file://` protocol. The app must be served (any static file server works).
 
 **Tested with sample level**: The default project includes a pre-built level with:
 - Ground tiles across the bottom 3 rows
@@ -190,12 +190,12 @@ This level exercises: tile rendering (4 tile types), entity rendering (3 entity 
 
 ## What Would Change for v2
 
-- **Tile collision map editor** — visual toggling of solid/deadly properties per tile
-- **Undo/redo** — command pattern over tile and entity operations
+- **Tile collision map editor**: visual toggling of solid/deadly properties per tile
+- **Undo/redo**: command pattern over tile and entity operations
 - **Multi-tile selection and copy/paste**
-- **Sound effects** — Web Audio API, square-wave chiptune generator
+- **Sound effects**: Web Audio API, square-wave chiptune generator
 - **Sprite rotation and mirroring tools**
-- **More entity behaviors** — follow waypoints, shoot projectiles, flee
-- **Level scaling** — infinite scroll with chunked loading
-- **Keyboard shortcuts cheat sheet** — overlay modal
-- **Mobile touch support** — virtual joystick for game mode
+- **More entity behaviors**: follow waypoints, shoot projectiles, flee
+- **Level scaling**: infinite scroll with chunked loading
+- **Keyboard shortcuts cheat sheet**: overlay modal
+- **Mobile touch support**: virtual joystick for game mode

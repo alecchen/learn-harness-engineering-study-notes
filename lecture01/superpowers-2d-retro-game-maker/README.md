@@ -76,7 +76,7 @@ Session ledger: `.superpowers/sdd/2d-retro-game-maker/progress.md`
 - JSON serialize/deserialize with Uint8Array ↔ Array conversion
 - Standalone HTML export embedding full game engine
 
-**Task 6: Play mode — physics, collision, camera**
+**Task 6: Play mode (physics, collision, camera)**
 - Platformer physics: gravity 0.5, move 3, jump -8, max fall 10
 - AABB collision, move-X-resolve-X then move-Y-resolve-Y
 - Camera follow with level bounds clamping
@@ -170,5 +170,5 @@ cd9760d Flagpole detection fix
 - Subagent-driven development kept context clean across 8 tasks, each running in ~2-6 minutes
 - Task review loop caught issues: CRLF line endings, sentinel value for transparent pixels
 - Feature additions post-plan were implemented inline (no formal plan cycle) since the user described specific requirements
-- Single HTML file grew to 1592 lines — would benefit from splitting into modules at larger scale
+- Single HTML file grew to 1592 lines. Would benefit from splitting into modules at larger scale
 - Playwright test proved game is playable (movement, jump, landing all pass)
