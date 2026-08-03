@@ -66,6 +66,8 @@ Uses the [Superpowers framework](https://github.com/obra/superpowers) as the har
 
 The spectrum shows a clear tradeoff: more harness = more reliable output = more tokens. The right choice depends on whether you need a quick sketch (solo), a solid first pass (grill-me), or production-quality code (superpowers).
 
+**Real-world data point:** [Vyom Goyal (@hellovyom)](https://x.com/hellovyom/status/2083177530287353961) built an arcade racing game, [Wave Racer](https://wave-racer.vercel.app/), with a single Opus 5 prompt and no harness. His write-up: "690 million tokens, $423 and just 1 prompt is all it took." It is the solo approach pushed to its limit, moving the iteration budget from a structured harness into one very long agent run.
+
 ---
 
 ## Key insight: AGENTS.md as a map, not an encyclopedia
