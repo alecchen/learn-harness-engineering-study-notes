@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # Retro Game Maker: Grill & Build Record
 
 **Session:** 2026-07-30

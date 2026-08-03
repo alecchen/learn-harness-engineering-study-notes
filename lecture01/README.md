@@ -1,3 +1,8 @@
+---
+layout: default
+permalink: /lecture01/
+---
+
 # Lecture 01 — SWE-bench & the Harness
 
 ## SWE-bench Verified
@@ -27,7 +32,7 @@ Inspired by [Anthropic's blog post on harness design for long-running apps](http
 
 ### 1. Solo (no harness)
 
-[`solo-2d-retro-game-maker/`](solo-2d-retro-game-maker/) — [`index.html`](solo-2d-retro-game-maker/index.html) ([README](solo-2d-retro-game-maker/README.md))
+[`solo-2d-retro-game-maker/`](solo-2d-retro-game-maker/) — [`index.html`](solo-2d-retro-game-maker/index.html) ([README](solo-2d-retro-game-maker/README.html))
 
 A single prompt to Claude asking it to build the game in one shot. No scaffolding, no iterative feedback, no structured evaluation. The model produces what it produces in a single pass. Whatever quality emerges is whatever the model guessed the user wanted.
 
@@ -40,7 +45,7 @@ python3 -m http.server 8080
 
 ### 2. Grill-me (skill-based harness)
 
-[`grill-me-2d-retro-game-maker/`](grill-me-2d-retro-game-maker/) — [`game.html`](grill-me-2d-retro-game-maker/game.html) ([README](grill-me-2d-retro-game-maker/README.md))
+[`grill-me-2d-retro-game-maker/`](grill-me-2d-retro-game-maker/game.html) — [`game.html`](grill-me-2d-retro-game-maker/game.html) ([README](grill-me-2d-retro-game-maker/README.html))
 
 Uses the [`/grill-me` skill](https://github.com/mattpocock/skills) as the harness. The skill defines a structured prompt sequence: it grills the user on requirements before writing code, validates the output against those requirements, and iterates on failure. The harness is the skill itself. It enforces a protocol the model follows.
 
@@ -48,7 +53,7 @@ Uses the [`/grill-me` skill](https://github.com/mattpocock/skills) as the harnes
 
 ### 3. Superpowers (framework-based harness)
 
-[`superpowers-2d-retro-game-maker/`](superpowers-2d-retro-game-maker/) — [`index.html`](superpowers-2d-retro-game-maker/index.html) ([README](superpowers-2d-retro-game-maker/README.md))
+[`superpowers-2d-retro-game-maker/`](superpowers-2d-retro-game-maker/) — [`index.html`](superpowers-2d-retro-game-maker/index.html) ([README](superpowers-2d-retro-game-maker/README.html))
 
 Uses the [Superpowers framework](https://github.com/obra/superpowers) as the harness. Superpowers provides a complete agentic workflow: specification-driven development (SDD), structured task decomposition, planning, execution, review, and iteration loops. The harness orchestrates multiple model calls: one to plan, one to write, one to review, one to fix, with each stage validating the output of the prior one.
 

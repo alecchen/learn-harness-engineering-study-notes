@@ -1,3 +1,8 @@
+---
+layout: default
+permalink: /
+---
+
 # Learn Harness Engineering - Study Notes
 
 My learning progress and sharing space for the [Learn Harness Engineering](https://walkinglabs.github.io/learn-harness-engineering/en/) course.
@@ -6,7 +11,7 @@ This repo tracks my work through each lecture — coding exercises, experiments,
 
 ## Structure
 
-- [`lecture01/`](lecture01/README.md)
+- [`lecture01/`](lecture01/)
 - More lectures to come...
 
 ## Errata

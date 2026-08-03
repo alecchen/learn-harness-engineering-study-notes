@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 ## Running It
 
 This uses ES modules (`<script type="module">`), so opening `index.html` directly from disk won't work. Browsers block module scripts on `file://`. Serve it with any static file server:

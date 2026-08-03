@@ -1,3 +1,7 @@
+---
+layout: default
+---
+
 # Session Record: 2D Retro Game Maker
 
 **Date:** 2026-07-30

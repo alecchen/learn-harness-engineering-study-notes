@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if page.title %}{{ page.title }} · {% endif %}{{ site.title }}</title>
+  <link rel="stylesheet" href="{{ site.baseurl }}/assets/css/style.css">
+  <script>
+    // Apply a persisted theme before first paint so there is no flash of the wrong theme.
+    (function () {
+      var theme = localStorage.getItem("theme");
+      if (theme === "light" || theme === "dark") {
+        document.documentElement.setAttribute("data-theme", theme);
+      }
+    })();
+  </script>
+</head>
+<body>
+  {% include nav.html %}
+  <main class="site-content">
+    {{ content }}
+  </main>
+  <script>
+    // Theme toggle: cycles auto -> dark -> light, persists in localStorage.
+    // Absent or "auto" follows the OS preference (prefers-color-scheme in CSS).
+    (function () {
+      var btn = document.getElementById("theme-toggle");
+      var icon = document.getElementById("theme-icon");
+      if (!btn || !icon) { return; }
+      var order = ["auto", "dark", "light"];
+      var label = { auto: "Auto", dark: "Dark", light: "Light" };
+      var glyph = { auto: "◐", dark: "☽", light: "☀" };
+      var current = localStorage.getItem("theme") || "auto";
+      function render() {
+        icon.textContent = glyph[current];
+        btn.title = "Theme: " + label[current] + " (click to change)";
+        btn.setAttribute("aria-label", "Theme: " + label[current] + ". Click to cycle to the next theme.");
+      }
+      function apply(t) {
+        current = t;
+        if (t === "auto") {
+          document.documentElement.removeAttribute("data-theme");
+        } else {
+          document.documentElement.setAttribute("data-theme", t);
+        }
+        localStorage.setItem("theme", t);
+        render();
+      }
+      btn.addEventListener("click", function () {
+        apply(order[(order.indexOf(current) + 1) % order.length]);
+      });
+      render();
+    })();
+  </script>
+</body>
+</html>

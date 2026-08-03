@@ -1,0 +1,20 @@
+# Jekyll configuration for GitHub Pages (legacy builder).
+# Site: https://alecchen.github.io/learn-harness-engineering-study-notes/
+
+title: Learn Harness Engineering - Study Notes
+description: >-
+  My learning progress and sharing space for the Learn Harness Engineering
+  course - coding exercises, experiments, and study-group discussions.
+url: "https://alecchen.github.io"
+baseurl: "/learn-harness-engineering-study-notes"
+
+# GitHub-Flavored Markdown via kramdown (tables, task lists, autolinks, ...).
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+  auto_ids: true
+
+# No theme, no defaults block: layouts come from explicit front matter on the
+# pages that opt in. Files without front matter are served raw (as .md), which
+# is intentional for agent artifacts (docs/, CLAUDE.md, .superpowers/).
