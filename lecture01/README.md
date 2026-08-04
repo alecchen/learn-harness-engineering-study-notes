@@ -170,3 +170,136 @@ At first glance, harness engineering looks like **waterfall** because it emphasi
 The surface similarity to waterfall dissolves when you realize: **the harness itself is built incrementally, driven by failures.** You don't specify every check, every context document, every tool permission before the first agent run. You start with the minimum, see what breaks, and add what's missing. That's inspect-and-adapt, not big-design-upfront.
 
 The core mindset shift: when an agent fails, ask "which layer of my harness is weak?", not "which better model do I need?"
+
+---
+
+## Exercise 1: Confluence-to-Markdown Conversion
+
+I asked Claude to use an MCP fetch tool to retrieve a Confluence page and asked Qwen-3.6-27B to convert it to Markdown.
+
+The MCP tool returned a truncated result. Instead of stopping and reporting that the source was incomplete, the agent generated a complete-looking Markdown document and fabricated content that was not in the original Confluence page.
+
+### Failure attribution
+
+- **Execution environment**: The MCP fetch returned incomplete data and did not provide a reliable way to retrieve the full page.
+- **Context provision**: Because the response was truncated, the agent did not have the complete source content.
+- **Verification feedback**: No check detected truncation or prevented the agent from producing output based on missing information. This was the main reason the fabricated result was accepted.
+- **Task specification**: The instructions did not explicitly say, "If the source is incomplete, stop and do not infer or fabricate."
+- **State management**: Not relevant, since the failure occurred in a single run without problematic persisted state.
+
+### Conclusion
+
+The main failure chain was:
+
+Execution environment failure → incomplete context → insufficient verification → fabricated output
+
+Adding an `AGENTS.md` with explicit instructions and a completeness check should make the agent stop and report the truncated fetch instead of generating inaccurate Markdown.
+
+---
+
+## Exercise 2: Verification gap measurement
+
+Pick 5 coding tasks. After each task, record whether the agent claims completion, then verify actual correctness with independent tests. Calculate the proportion of times the agent claims done when it is actually not done - that is your verification gap. Then think: what verification commands would reduce this proportion?
+
+### The metric
+
+The gap mixes two failure modes that need different fixes:
+
+- **Process failure** - the agent claimed done without running the tests.
+- **Test-quality failure** - the agent ran the tests, they passed, but the task was still wrong.
+
+Measure both rates separately. A model swap does not close the gap: it is a harness property, not a model property. Detection does not scale with capability, and a more fluent model produces more plausible wrong "done" claims. Treat the 5-task run as a before/after experiment and report the delta after each fix.
+
+### Who writes the tests
+
+The tests must be independent, or the agent can fabricate them four ways: claim a pass without running anything, encode its wrong assumption in the test, write a vacuous test, or write a test that matches its broken code.
+
+- A **separate model** writes the tests from the task spec only, never from the agent's code. This breaks self-consistency: the verifier cannot look at the thing it verifies.
+- A **human** audits the suite periodically (every N tasks) instead of per task, catching vacuous tests without becoming a bottleneck.
+
+### My approach
+
+- Add a test suite and a CI pipeline.
+- A separate model writes the tests from the spec, before the implementation exists.
+- Run the suite after the agent finishes each task, enforced by a pre-commit hook or gitlab-ci-local, not just a prompt rule.
+- Keep improving the test suite in each iteration.
+
+### Enforcing the gate
+
+A rule is task-spec: it asks, it does not enforce. `git commit --no-verify` skips local hooks entirely, so no commit-side hook can stop it. Push verification to layers the agent cannot skip:
+
+- **Execution environment** - deny the `--no-verify` patterns (`git commit -n`, `git commit --no-verify`) via a tool permission rule, so the agent cannot even issue the command.
+- **Local gate** - pre-commit hook or gitlab-ci-local runs the suite per task. Fast, but `-n`-able, so it is the per-task loop, not the floor.
+- **Server floor** - a GitLab pre-receive hook, or a protected branch with required pipeline/merge checks. `-n` means nothing on the server; the suite must pass before the result lands as done.
+
+### Claude Code enforcement
+
+Both live in the repo's Claude Code config: a deny rule in `.claude/settings.json` plus a PreToolUse hook. The hook blocks, the deny rule prevents prompting:
+
+```json
+{
+  "permissions": {
+    "deny": [
+      "Bash(git commit --no-verify:*)",
+      "Bash(git commit -n:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/block-git-bypass.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+`.claude/hooks/block-git-bypass.sh` reads the tool input from stdin as JSON (PreToolUse passes no env var) and exits 2 to block:
+
+```bash
+#!/bin/bash
+cmd=$(jq -r '.tool_input.command')
+if printf '%s\n' "$cmd" | grep -Eq 'git[[:space:]]+commit([[:space:]]|$)' &&
+   printf '%s\n' "$cmd" | grep -Eq -- '--no-verify|(^|[[:space:]-])-n([[:space:]]|$|-?)'; then
+  echo "Blocked by policy: git commit --no-verify/-n" >&2
+  exit 2
+fi
+exit 0
+```
+
+Exit 2 feeds the stderr text back to the agent as a block error; the alternative is exit 0 plus a JSON `permissionDecision: deny` on stdout. A deny rule overrides any allow rule and never prompts.
+
+Limitations: the permission matcher is a word-boundary anchored glob, so it misses `git -C <dir> commit --no-verify`, reordered flags, and combined short flags like `-nm`. The hook greps the raw command and catches those, but both are blind to shell aliases and dynamic command strings - which is why the server floor is the real guarantee.
+
+### Summary
+
+Verification gap = (claimed done and actually wrong) / (claimed done). The chain that closes it: independent tests from a separate model → local gate for the per-task loop → server CI as the un-bypassable baseline → regressions folded back into the suite each iteration. Each layer closes the fabrication hole that Exercise 1 exposed.
+
+---
+
+## Exercise 3: Diagnostic loop practice
+
+Find a task where the agent repeatedly fails in your project. Run once, record the failure. Attribute it to one of the five layers. Fix that layer. Run again. Repeat three to five rounds, recording improvements each time.
+
+### The case: lean-ctx subprocess explosion
+
+Running with lean-ctx, the agent sometimes spawned a subprocess that used `glob` to list directory contents or tree structure instead of the `ctx_tree` / MCP tools. Combined with a `.bashrc` that had no non-interactive-shell guard, each spawned bash could hang and time out; the agent respawned a new `ctx_shell`, which spawned more bash, until the Linux VM ran out of memory, the kernel killed Claude - and lean-ctx kept spawning bash. It happened several times.
+
+### Diagnostic rounds
+
+| Round | Fix | Layer | Result |
+|-------|-----|-------|--------|
+| 1 | Added an instruction to prefer the ctx_* MCP tools over raw `glob` / bash file discovery | Task specification | Helped, but the agent still reached for bash |
+| 2 | Added a permission denying bash usage in Claude | Execution environment | Blocked most bash, but direct file ops slipped through |
+| 3 | Added a hook to block direct bash file ops (`cp`, `mv`, `mkdir`, ...) | Execution environment | Stopped the file-op path |
+| 4 | Root cause: `.bashrc` had no non-interactive-shell guard, so every spawned bash ran interactive startup and hung. Added the guard | Execution environment | Seems to fix it |
+
+### Root cause and lesson
+
+The defect was in the environment, not the agent: a `.bashrc` without a non-interactive-shell guard. Every bash spawned by the agent inherited it, hung on interactive-only startup, timed out, and the retry loop amplified one hang into a memory blowup. The instruction and permission fixes reduced the symptoms at their layers; the guard removed the cause. When fixes at one layer keep failing, the real defect may sit deeper - keep the loop going until you find the layer that actually stops the failure.
