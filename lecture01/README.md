@@ -221,7 +221,7 @@ The tests must be independent, or the agent can fabricate them four ways: claim 
 
 - Add a test suite and a CI pipeline.
 - A separate model writes the tests from the spec, before the implementation exists.
-- Run the suite after the agent finishes each task, enforced by a pre-commit hook or gitlab-ci-local, not just a prompt rule.
+- Run the suite after the agent finishes each task, enforced by a pre-commit hook or [gitlab-ci-local](https://github.com/firecow/gitlab-ci-local), not just a prompt rule.
 - Keep improving the test suite in each iteration.
 
 ### Enforcing the gate
@@ -229,7 +229,7 @@ The tests must be independent, or the agent can fabricate them four ways: claim 
 A rule is task-spec: it asks, it does not enforce. `git commit --no-verify` skips local hooks entirely, so no commit-side hook can stop it. Push verification to layers the agent cannot skip:
 
 - **Execution environment** - deny the `--no-verify` patterns (`git commit -n`, `git commit --no-verify`) via a tool permission rule, so the agent cannot even issue the command.
-- **Local gate** - pre-commit hook or gitlab-ci-local runs the suite per task. Fast, but `-n`-able, so it is the per-task loop, not the floor.
+- **Local gate** - pre-commit hook or [gitlab-ci-local](https://github.com/firecow/gitlab-ci-local) runs the suite per task. Fast, but `-n`-able, so it is the per-task loop, not the floor.
 - **Server floor** - a GitLab pre-receive hook, or a protected branch with required pipeline/merge checks. `-n` means nothing on the server; the suite must pass before the result lands as done.
 
 ### Claude Code enforcement
