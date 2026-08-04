@@ -9,6 +9,10 @@ permalink: /lecture01/
 
 - [SWE-bench Verified](#swe-bench-verified)
 - [2D Retro Game Maker — Three Approaches](#2d-retro-game-maker--three-approaches)
+  - [1. Solo (no harness)](#1-solo-no-harness)
+  - [2. Grill-me (skill-based harness)](#2-grill-me-skill-based-harness)
+  - [3. Superpowers (framework-based harness)](#3-superpowers-framework-based-harness)
+  - [Summary](#summary)
 - [The five defense layers](#the-five-defense-layers)
 - [Key insight: AGENTS.md as a map, not an encyclopedia](#key-insight-agentsmd-as-a-map-not-an-encyclopedia)
 - [Observation: Harness engineering vs development methodologies](#observation-harness-engineering-vs-development-methodologies)
