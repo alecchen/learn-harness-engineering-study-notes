@@ -181,6 +181,7 @@ body {
   margin: 0 0 16px;
   padding: 16px;
   overflow: auto;
+  font-size: 85%;
   background: var(--code-bg);
   border: 1px solid var(--border);
   border-radius: 6px;
