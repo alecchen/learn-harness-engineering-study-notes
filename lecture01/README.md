@@ -75,6 +75,76 @@ The spectrum shows a clear tradeoff: more harness = more reliable output = more 
 
 ---
 
+## The five defense layers
+
+A harness guards against agent failure on five layers:
+
+1. **Task specification** - what the agent is asked to do: a clear, testable goal.
+2. **Context provision** - what the agent is told: docs, references, constraints.
+3. **Execution environment** - what the agent is allowed to run: tools, permissions, sandbox.
+4. **Verification feedback** - what the agent is measured against: tests, checks, scoring.
+5. **State management** - what the agent remembers across runs: persistence, checkpointing.
+
+Each layer catches a different failure class. When an agent fails, ask which layer was weak, not which model to swap in.
+
+### 1. Task specification
+
+What the agent is asked to do. A weak spec makes the agent guess intent - the failure mode of the solo approach in the 2D Retro Game Maker section, where the model inferred what the user wanted with no chance to course-correct.
+
+**Example.** Vague: "fix the bug in the game." Precise: "The game crashes when the player collects a power-up. Reproduce with `npm test`. Keep the scoring logic unchanged and add a regression test." The precise version is testable and bounds the change.
+
+**Real-world usage.**
+- SWE-bench: the task is the GitHub issue itself. The Verified subset is human-curated - that curation *is* task-spec refinement: only issues a human could solve from the text alone survive.
+- The course's core loop: treat the spec as a hypothesis, not a contract. Each failure tightens it. You add "don't touch scoring logic" only after the agent first breaks it.
+- `/grill-me` forces requirements out of you before any code - an interrogation-based spec.
+- Superpowers SDD writes a spec file first and validates the code against it.
+
+### 2. Context provision
+
+What the agent is told. Too little context and the agent misses constraints; too much and it drowns in tokens. The fix is the map, not the encyclopedia - the AGENTS.md insight in the Key insight section.
+
+**Example.** An `AGENTS.md` that says "build steps in `docs/build.md`, test layout in `tests/README.md`, architecture decisions in `ADR/`" instead of inlining all of it. The agent fetches only what the current task needs.
+
+**Real-world usage.**
+- SWE-bench hands the agent the repo plus the issue and nothing else - the barest context, part of what makes it hard.
+- `CLAUDE.md`, `AGENTS.md`, and skills are the context layer of Claude Code. MCP tool descriptions are also context: the model reads them before acting.
+- Over-provisioning shows up as wasted tokens and off-target edits. Under-provisioning shows up as the agent reinventing conventions it could have read.
+
+### 3. Execution environment
+
+What the agent is allowed to run. Sandboxing and permissions bound the blast radius and make runs reproducible.
+
+**Example.** SWE-bench pins each repo in a Docker image with a fixed toolchain, so every run is the same environment. The game experiments hit an environment constraint too: ES modules are blocked on `file://`, so the game needs `python3 -m http.server` to run.
+
+**Real-world usage.**
+- Docker containers as the eval sandbox (SWE-bench); CI runners as the build sandbox.
+- Permission modes and tool allowlists - read-only vs read-write. Claude Code's permission prompts are an execution-environment control.
+- Network egress blocking and secret-scope control: the environment decides what the agent can touch.
+
+### 4. Verification feedback
+
+What the agent is measured against, and the loop that returns that signal. Without it the agent never learns whether it succeeded - the solo run produced a game, but nothing said whether it was "right."
+
+**Example.** SWE-bench's `FAIL_TO_PASS` and `PASS_TO_PASS` tests: the verification *defines* done. In the Superpowers run, the review-and-fix loop used one model's critique as feedback for another's patch.
+
+**Real-world usage.**
+- CI is the verification layer at scale - the mapping in the methodology table.
+- Cheap gates first (lint, types) before expensive ones (full test suite): feedback you actually run.
+- Human review as the manual fallback. Grill-me's implicit checks are weaker verification - process, not proof.
+
+### 5. State management
+
+What the agent remembers across runs. Long runs lose context; the harness must persist progress so work resumes instead of restarting.
+
+**Example.** Anthropic's harness design for long-running apps is largely state management: checkpoints, durable artifacts, resumable loops. Wave Racer's single 690M-token run is the extreme case - a long-running agent that must not lose its place.
+
+**Real-world usage.**
+- Checkpoint and resume in agent CLIs; todo lists and partial results written to disk so a crash is a restart point, not a do-over.
+- Deterministic replay from a checkpoint to reproduce a failure.
+- The layer production agents depend on most: invisible until missing, then everything re-runs from zero.
+
+---
+
 ## Key insight: AGENTS.md as a map, not an encyclopedia
 
 From reading [lecture 1](https://walkinglabs.github.io/learn-harness-engineering/zh-TW/lectures/lecture-01-why-capable-agents-still-fail/) and its reference to [OpenAI's Harness Engineering](https://openai.com/zh-Hant/index/harness-engineering/):
