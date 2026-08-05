@@ -28,7 +28,7 @@ There is no config-level auto-conversion: a Markdown file without front matter s
 ### Link conventions
 
 - Link to a lecture as `lectureNN/` (its permalink), not `lectureNN/README.md`.
-- Link to a sub-project's README as `<dir>/README.html` (it is rendered), not `<dir>/README.md`.
+- Link to a sub-project as `<dir>/` (its permalink), not `<dir>/README.md` or `<dir>/README.html`.
 - A `<dir>/` URL serves that directory's `index.html` (e.g. a game app) when one exists.
 
 ### Build

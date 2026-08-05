@@ -49,11 +49,10 @@ npm start
 | Metric                 | Value          |
 | ---------------------- | -------------- |
 | Session duration       | 25m 54s        |
-| Total cost             | $7.28          |
+| Total cost             | $0.11          |
 | Total duration (API)   | 12m 14s        |
 | Total duration (wall)  | 29m 23s        |
 | Total code changes     | 2050 added / 154 removed |
 
 Usage by model:
-- `claude-sonnet-4-6`: 291.9k input, 69.1k output, 17.9m cache read ($7.28)
-- `claude-haiku-4-5`: 40 input, 227 output, 384 cache read ($0.0012)
+- `deepseek-v4-flash`: 291.9k input, 69.1k output, 17.9m cache read ($0.11)

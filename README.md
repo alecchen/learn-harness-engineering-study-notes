@@ -9,14 +9,16 @@ My learning progress and sharing space for the [Learn Harness Engineering](https
 
 This repo tracks my work through each lecture — coding exercises, experiments, and discussions I want to share with the study group.
 
-## Structure
+To serve this repo locally, run `bundle exec jekyll serve` and open <http://127.0.0.1:4000/>.
+
+## Lectures
 
 - [`lecture01/`](lecture01/)
 - More lectures to come...
 
 ## Projects
 
-- [`project01/`](project01/README.html) - weak vs strong harness: the same Electron app built two ways
+- [`project01/`](project01/) - weak vs strong harness: the same Electron app built two ways
 
 ## Errata
 
