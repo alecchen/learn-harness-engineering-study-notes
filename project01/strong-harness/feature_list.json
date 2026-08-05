@@ -1,0 +1,38 @@
+{
+  "project": "project-01",
+  "description": "Baseline Electron knowledge base with minimal harness",
+  "features": [
+    {
+      "id": "window-launch",
+      "name": "Window Launch",
+      "description": "Electron app opens a BrowserWindow with correct dimensions and preload script",
+      "status": "pass",
+      "evidence": "npm run check and npm run build pass; electron . smoke test opened a 1200x800 window with contextIsolation enabled and preload script attached, no console errors",
+      "testedAt": "2026-08-05T15:05:00Z"
+    },
+    {
+      "id": "document-list",
+      "name": "Document List Panel",
+      "description": "Left sidebar shows imported documents with empty state message",
+      "status": "pass",
+      "evidence": "DocumentList component renders sidebar entries with title and chunk count, shows empty-state message when no documents; import flow adds entries via documents:import IPC",
+      "testedAt": "2026-08-05T15:05:00Z"
+    },
+    {
+      "id": "question-panel",
+      "name": "Question Panel",
+      "description": "Bottom input bar accepts questions and submits via IPC",
+      "status": "pass",
+      "evidence": "QuestionPanel component submits via qa:ask IPC; QaService returns grounded answers with citations (15 vitest tests pass covering import, indexing, and QA)",
+      "testedAt": "2026-08-05T15:05:00Z"
+    },
+    {
+      "id": "data-directory",
+      "name": "Data Directory",
+      "description": "PersistenceService creates and manages userData/knowledge-base-data directory",
+      "status": "pass",
+      "evidence": "PersistenceService.init() creates userData/knowledge-base-data on startup; atomic JSON writes and content/chunks files verified by services.test.ts against a temp data dir",
+      "testedAt": "2026-08-05T15:05:00Z"
+    }
+  ]
+}

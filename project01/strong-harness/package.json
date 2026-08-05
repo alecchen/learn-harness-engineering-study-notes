@@ -1,0 +1,32 @@
+{
+  "name": "knowledge-base",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Electron knowledge base that shows documents and answers questions",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "check": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
+    "build": "tsc -p tsconfig.node.json && vite build",
+    "dev": "npm run build && electron .",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "@types/react": "^18.3.8",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.2",
+    "electron": "^33.0.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.8",
+    "vitest": "^2.1.2"
+  },
+  "allowScripts": {
+    "electron@33.4.11": true,
+    "esbuild@0.21.5": true
+  }
+}

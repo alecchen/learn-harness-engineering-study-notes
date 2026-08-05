@@ -1,0 +1,18 @@
+{
+  "name": "weak-harness",
+  "productName": "Doc Chat",
+  "version": "0.1.0",
+  "description": "Electron app that shows documents and answers questions about them",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^43.3.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
+    "pdf-parse": "^2.4.5"
+  }
+}

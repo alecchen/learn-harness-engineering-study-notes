@@ -14,6 +14,10 @@ This repo tracks my work through each lecture — coding exercises, experiments,
 - [`lecture01/`](lecture01/)
 - More lectures to come...
 
+## Projects
+
+- [`project01/`](project01/README.html) - weak vs strong harness: the same Electron app built two ways
+
 ## Errata
 
 | Lecture | Issue | Status |
