@@ -13,6 +13,7 @@ working styles: a **weak harness** (plain JS, no structure or tests) and a
 ## Contents
 
 - [Extra information: Prompt-Only vs Rules-First](#extra-information-prompt-only-vs-rules-first)
+- [Cross-validation: second agent (Cowork)](#cross-validation-second-agent-cowork)
 - [Weak-harness - Doc Chat](#weak-harness)
 - [Strong-harness - TypeScript + React knowledge base](#strong-harness)
 - [Takeaways](#takeaways)
@@ -154,12 +155,75 @@ a reference derived from `AGENTS.md` instead of re-stating its rules.
 ### Course docs inconsistencies
 
 These packages are self-contained. If the published course docs disagree with
-them, trust the packages. Known gaps in the docs: the first and third have a
-local fix ready to PR; the second is left for the maintainer to decide.
+them, trust the packages. All three gaps below were filed as a single PR and
+merged upstream - see [Filed as PR #61](#filed-as-pr-61-merged-2026-08-06).
 
 - **`docs/` is missing from the harness description.** The [English project page](https://walkinglabs.github.io/learn-harness-engineering/en/projects/project-01-baseline-vs-minimal-harness/) lists the strong-harness artifacts as `AGENTS.md`, `CLAUDE.md`, `init.sh`, `feature_list.json`, `claude-progress.md` and defines the harness as "AGENTS.md + init.sh + feature_list.json". Neither mentions `docs/`. But `solution/AGENTS.md` steps 2-3 order the agent to read `docs/ARCHITECTURE.md` and `docs/PRODUCT.md`, so they must be included or the strong run stalls. `p01-improved-init.tar.gz` includes them.
 - **The zh-TW page adds a 30-min / 20-round limit the English page lacks.** The [zh-TW page](https://walkinglabs.github.io/learn-harness-engineering/zh-TW/projects/project-01-baseline-vs-minimal-harness/) has a "具體步驟" section that caps each run at "建議 30 分鐘 / 20 輪" and lists metrics and deliverables; the [English page](https://walkinglabs.github.io/learn-harness-engineering/en/projects/project-01-baseline-vs-minimal-harness/) has no steps section or limits at all, and adds a note that partial or broken output is valid experimental evidence, which the zh-TW page lacks. This README follows the English page and prescribes no time or round limit.
 - **The zh-TW page mis-describes `init.sh`.** The [zh-TW page](https://walkinglabs.github.io/learn-harness-engineering/zh-TW/projects/project-01-baseline-vs-minimal-harness/) calls it "一鍵恢復可執行狀態（`npm install && npm start`）" (one-click restore to a runnable state). The actual `init.sh` runs `npm install` + `npm run check` + `npm run build`; it verifies the project builds and never launches the app. `npm start` isn't even a defined script in the checked-in `package.json` (the launch script is `npm run dev`).
+
+### Filed as PR #61 (merged 2026-08-06)
+
+The gaps above were filed as
+[PR #61](https://github.com/walkinglabs/learn-harness-engineering/pull/61)
+and merged into `walkinglabs/learn-harness-engineering` on 2026-08-06.
+What the merged PR changed:
+
+- **`solution/CLAUDE.md`** now starts with `@AGENTS.md`, so Claude Code loads the
+  full harness spec (startup rules, `docs/` references, Definition of Done,
+  `feature_list.json` status semantics). The two-file shape is kept for
+  Codex/Copilot, which auto-load `AGENTS.md`.
+- **`docs/en/.../index.md`**:
+  - marks the intro artifact list as a subset (`e.g.`) so it no longer
+    contradicts the six-artifact "Harness Mechanism" line;
+  - notes `starter/` contains a reference implementation that must be stripped
+    before the run, and that `data/` sample docs are the reader's call;
+  - links `docs/` and adds reset-evidence guidance (statuses to `not-started`,
+    clear `evidence`/`testedAt`, clear `claude-progress.md` log);
+  - replaces the git-branch comparison with isolated working directories;
+  - gains the Run Protocol / How to Measure Results / What to Submit sections.
+- **`docs/zh-TW/.../index.md`**: same fixes, plus removal of the 30-min/20-round
+  limit (the English page never had it) and a corrected `init.sh` description
+  (`npm install && npm run check && npm run build` - it verifies the build and
+  never launches the app).
+
+Closed loop: the experiment surfaced the doc gaps, the gaps were filed and
+merged upstream, and the course pages now match the protocol these packages
+already shipped with.
+
+<h2 id="cross-validation-second-agent-cowork">Cross-validation: second agent (Cowork)</h2>
+
+> Standalone copy: [p01-cowork-cross-validation.html](p01-cowork-cross-validation.html).
+
+The same protocol was run a second time by a different agent (**Cowork**, an
+OpenWorker agent, 2026-08-09) - same task prompt, same harness files. The gap
+reproduced: the strong run finished in about half the time with all checks
+green and zero post-hoc bugs, while the weak run needed 3 launch-fix rounds
+(electron install, path.txt, sandboxed preload) before it worked.
+
+This second run is a **lower bound** - the agent had read `solution/` and
+carries its own built-in harness - so the Claude Code numbers above remain the
+cleaner estimate. Shared finding that reproduced: npm's allow-scripts gate
+blocked the electron/esbuild postinstall in *both* agents' runs, an
+environment-level issue no harness file fixes.
+
+**Why this happens (condensed).** npm 11.16+ silently skips any dependency's
+`postinstall`/`preinstall` script that isn't on an explicit allowlist (npm 12
+turns this into a hard failure). The `electron` npm package is just a JS
+wrapper - its `postinstall` downloads the real binary into
+`node_modules/electron/dist/` and writes `path.txt`; skip it and launch dies
+with *"Electron failed to install correctly"*. No harness file can fix this:
+the block lives in the package manager's security policy **on the machine**,
+not in the project, and `init.sh` (build-only) never touches Electron's
+binary. The fix is environment-level too:
+
+```bash
+npm approve-scripts electron esbuild   # writes pinned allowScripts entries
+```
+
+Commit the resulting `allowScripts` block + lockfile so every future clone is
+fixed, and add a launch/smoke-test step to `init.sh`. Full mechanism
+breakdown: [p01-cowork-cross-validation.html](p01-cowork-cross-validation.html).
 
 <h2 id="weak-harness">Weak-harness - "Doc Chat"</h2>
 
