@@ -113,6 +113,8 @@ Not always. Writing gtest/gmock in a large C++ EDA project is difficult.
 | ci | gitlab-ci-local, github actions |
 | github pages | jekyll build |
 
+**Smoke tests as fast feedback.** A lightweight smoke test (build + key endpoints responding) lets the agent catch breakage early and review the problem instead of piling on features over a broken base. Run it before committing; if it fails, stop and fix first.
+
 ## References
 
 - [Explore, plan, code, commit (verification)](https://anthropic.skilljar.com/claude-code-101/469792)
