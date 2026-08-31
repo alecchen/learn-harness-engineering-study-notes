@@ -81,7 +81,7 @@ ACID in a database is enforced by the system - you get atomicity whether you wan
 
 > One caveat: in a database, ACID is guaranteed by the system. Here none of it is automatic - these are practices the harness and agent must enforce. The repo is not a DBMS.
 
-There's a counterpoint in the other direction: OpenAI's agent-driven repo runs with minimal blocking merge gates and reruns flaky tests rather than blocking progress - "corrections are cheap, and waiting is expensive." At their throughput, strict verify-before-commit was abandoned as counterproductive. How much of the ACID discipline you need depends on how expensive a bad commit is relative to the cost of waiting.
+There's a counterpoint in the other direction: OpenAI's agent-driven repo runs with minimal blocking merge gates and reruns flaky tests rather than blocking progress - "corrections are cheap, and waiting is expensive." At their throughput, strict verify-before-commit was abandoned as counterproductive. How much of the ACID discipline you need depends on how expensive a bad commit is relative to the cost of waiting (see [Throughput changes the merge philosophy](#throughput-changes-the-merge-philosophy)).
 
 The analogy is still worth keeping: Atomicity, Isolation, and Durability map well (concurrent agents ≈ concurrent transactions; git-tracked knowledge surviving session death ≈ committed data surviving a crash). Only Consistency is a stretch, and it is repairable. If the repair work isn't wanted, drop the analogy for a plain checklist: commit complete work, verify after each step, avoid concurrent writes, write knowledge to files.
 
@@ -105,6 +105,16 @@ A prompt rule is not enough - it is task-spec, it asks but does not enforce. The
 It persists three files - `task_plan.md` (phases, resume point), `findings.md` (research notes, decisions), `progress.md` (session log, results) - and a fresh session re-reads them to resume. Cited result: 5 turns to recover after a context wipe vs 13.3 without. Note the write-back is a mix of two patterns: `PostToolUse` nudges the agent to write, while the `Stop` gate verifies the files are current.
 
 Both OpenAI and Anthropic run this pattern in production. Anthropic's harness uses an initializer agent that writes the init script, progress log, and initial commit; each coding session then starts by reading progress notes, git logs, and a feature list with pass/fail status - "saves Claude some tokens in every session since it doesn't have to figure out how to test" - and ends with a git commit and progress update. `claude-progress.txt` is the `PROGRESS.md` equivalent, and it's the lecture's Durability running. OpenAI goes further and encodes the rules mechanically: custom linters and structural tests whose error messages inject remediation instructions into agent context, plus "taste invariants" and recurring cleanup tasks ("garbage collection" for AI slop). The repo asks the agent to follow rules, then checks them on every run.
+
+### Throughput changes the merge philosophy
+
+The lecture's state management never addresses what happens when agents produce changes faster than humans can review them. OpenAI's post does: at that point human attention is the bottleneck, and the merge workflow has to change.
+
+The traditional workflow blocks merging until every issue is resolved. The high-throughput version runs the opposite way - minimal blocking gates, because waiting is expensive and corrections are cheap. Flaky tests (flakes) are the tradeoff: a test that sometimes passes and sometimes fails with no code change. Blocking a merge indefinitely on a suspected flake costs more than rerunning the test and fixing it in a follow-up if it turns out real.
+
+This is not an argument against quality control. Tests, linters, and reviews still gate quality; what changes is what blocks progress. The workflow optimizes for fast feedback and cheap correction instead of making every potential issue a merge blocker.
+
+> In a high-throughput agent environment, the cost of waiting can be higher than the cost of fixing mistakes later.
 
 ### Git history is part of the record
 
