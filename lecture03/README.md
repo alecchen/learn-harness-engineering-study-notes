@@ -168,6 +168,7 @@ The lecture's three exercises, with my take:
 
 ## References
 
+- [Slides: The Repository as System of Record](repo-system-of-record.html)
 - [Lecture 03 — the course page](https://walkinglabs.github.io/learn-harness-engineering/en/lectures/lecture-03-why-the-repository-must-become-the-system-of-record/)
 - [PR #65: Fix inaccurate git analogy in Lecture 03](https://github.com/walkinglabs/learn-harness-engineering/pull/65) — my Atomicity fix, merged
 - [OpenAI: Harness Engineering](https://openai.com/index/harness-engineering/)
