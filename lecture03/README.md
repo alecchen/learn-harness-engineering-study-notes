@@ -40,11 +40,15 @@ The lecture then walks a fixed path: problem (scattered knowledge) → principle
 
 The core claim matches the harness-engineering discourse. OpenAI's [Harness Engineering](https://openai.com/index/harness-engineering/) and Anthropic's [Effective Harnesses for Long-Running Agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) both center on the repo as the agent's reliable input channel. This is lecture 02's "repo is the single source of truth" ([lecture02](../lecture02/)) made concrete.
 
+OpenAI's post is the strongest external anchor for the lecture's title - it uses the phrase verbatim: "We made repository knowledge the system of record." Its statement of the input boundary is the "only inputs" claim nearly verbatim: "From the agent's point of view, anything it can't access in-context while running effectively doesn't exist. Repository-local, versioned artifacts are all it can see." And "give Codex a map, not a 1,000-page instruction manual" is the rationale behind Principle 3: context is scarce, too much guidance becomes non-guidance, a monolithic manual rots instantly, and a single blob resists mechanical verification.
+
 The fresh session test is measurable and actionable - a good repo-quality metric. It's lecture 01's "AGENTS.md as a map, not an encyclopedia" ([lecture01](../lecture01/)) in test form: the map is what lets a fresh session find answers.
 
 Knowledge next to code matches local-context best practice: the agent meets the doc exactly where the relevant code is. And "minimal but complete" guards against the failure mode lecture 01 warned about - over-provisioned context is wasted tokens and off-target edits.
 
 The knowledge-decay warning is the most important line in the lecture: stale docs actively mislead, which is worse than absence. Absence forces a guess the agent knows is a guess; a stale doc is a confident guess in the wrong direction.
+
+This move has been made before. Fowler's [Infrastructure as Code](https://martinfowler.com/bliki/InfrastructureAsCode.html) did the same thing for servers: move the source of truth from ad-hoc, human-held state into versioned, executable files - manual tweaks forbidden because they create Snowflake Servers, small changes preferred because they're easier to revert, every change logged. The consistency, auditability, and safety arguments carry over unchanged; only the substrate differs.
 
 ## Inaccuracies found
 
@@ -65,15 +69,19 @@ In a database, consistency means invariants hold - every transaction moves the s
 
 There is also a cross-lecture tension: "the agent runs verification after each operation" is the doer checking its own work. Lecture 02's "separate the doer from the checker" says the checker must be independent - otherwise the Consistency guarantee inherits the agent's mistakes.
 
+Anthropic reports the failure mode live: "Claude marks features as done prematurely" is an open problem in their harness, patched with prompting rather than solved. The doer-checking-its-own-work risk is not hypothetical.
+
 Suggested repair:
 
-> Consistency: In a database this means invariants hold — every transaction moves the system from one valid state to another. The repo equivalent: define your invariants (all tests pass, lint clean, docs match code) and verify them after each operation. An operation that leaves the state invalid is not committed.
+> Consistency: In a database this means invariants hold - every transaction moves the system from one valid state to another. The repo equivalent: define your invariants (all tests pass, lint clean, docs match code) and verify them after each operation. An operation that leaves the state invalid is not committed.
 
 ### The deeper hazard: ACID implies guarantees the repo doesn't provide
 
 ACID in a database is enforced by the system - you get atomicity whether you want it or not. In a repo, none of these are automatic; they are discipline the harness and agent must enforce: choosing to commit complete work, run verification, avoid clobbering, write knowledge down. Calling that "ACID" risks implying the repo provides guarantees it doesn't. One caveat sentence would make the analogy safe:
 
-> One caveat: in a database, ACID is guaranteed by the system. Here none of it is automatic — these are practices the harness and agent must enforce. The repo is not a DBMS.
+> One caveat: in a database, ACID is guaranteed by the system. Here none of it is automatic - these are practices the harness and agent must enforce. The repo is not a DBMS.
+
+There's a counterpoint in the other direction: OpenAI's agent-driven repo runs with minimal blocking merge gates and reruns flaky tests rather than blocking progress - "corrections are cheap, and waiting is expensive." At their throughput, strict verify-before-commit was abandoned as counterproductive. How much of the ACID discipline you need depends on how expensive a bad commit is relative to the cost of waiting.
 
 The analogy is still worth keeping: Atomicity, Isolation, and Durability map well (concurrent agents ≈ concurrent transactions; git-tracked knowledge surviving session death ≈ committed data surviving a crash). Only Consistency is a stretch, and it is repairable. If the repair work isn't wanted, drop the analogy for a plain checklist: commit complete work, verify after each step, avoid concurrent writes, write knowledge to files.
 
@@ -95,6 +103,8 @@ A prompt rule is not enough - it is task-spec, it asks but does not enforce. The
 | `PreCompact` | Re-injects the plan before context compaction, so the plan survives a compress |
 
 It persists three files - `task_plan.md` (phases, resume point), `findings.md` (research notes, decisions), `progress.md` (session log, results) - and a fresh session re-reads them to resume. Cited result: 5 turns to recover after a context wipe vs 13.3 without. Note the write-back is a mix of two patterns: `PostToolUse` nudges the agent to write, while the `Stop` gate verifies the files are current.
+
+Both OpenAI and Anthropic run this pattern in production. Anthropic's harness uses an initializer agent that writes the init script, progress log, and initial commit; each coding session then starts by reading progress notes, git logs, and a feature list with pass/fail status - "saves Claude some tokens in every session since it doesn't have to figure out how to test" - and ends with a git commit and progress update. `claude-progress.txt` is the `PROGRESS.md` equivalent, and it's the lecture's Durability running. OpenAI goes further and encodes the rules mechanically: custom linters and structural tests whose error messages inject remediation instructions into agent context, plus "taste invariants" and recurring cleanup tasks ("garbage collection" for AI slop). The repo asks the agent to follow rules, then checks them on every run.
 
 ### Git history is part of the record
 
@@ -119,6 +129,8 @@ Running these passes on this repo reconstructs the arc cleanly. Phase 1 (07-30):
 
 But look at what's missing: almost no message says *why*. "Migrate site to Jekyll" gives no rationale - the rationale is in CLAUDE.md's conventions. "humanize: replace em dashes" - the why is the style rule, not the commit. So even here the log is a table of contents, not the record; the record is the tracked files. On a repo where the why was never written down, history summarization bottoms out: the what/when is recoverable, the why is not. That is the strongest argument for ADRs and decision-oriented commit messages - the lecture's prescription applied to the audit trail itself.
 
+ADRs ([adr.github.io](https://adr.github.io/)) are the structured answer: lightweight, version-controlled records of significant decisions - context, rationale, outcome - that travel with the codebase. The problem they solve is the lecture's opening complaint: teams lose institutional knowledge about why choices were made, and re-litigate them. The lecture says "system of record" but never names the decision record; ADRs are the practice that makes the "why" durable. Nygard's 2011 post is the origin; MADR and eADR are the maintained variants.
+
 ### No boundary on what stays out of the repo
 
 Given the title, a reader could over-apply the principle and commit everything. The boundary matters because the repo's own guarantees cut both ways: git history is durable and immutable, which is exactly why some things must stay out - once pushed, a secret or a large artifact is in the history forever. The "what stays out" list:
@@ -129,7 +141,7 @@ Given the title, a reader could over-apply the principle and commit everything. 
 - **Large binaries and data** - asset stores, databases, or Git LFS. Model weights, media, DB dumps. Git history grows without bound and every clone pays for it.
 - **Ephemeral working notes** - scratch files, raw logs, one-off outputs. The lecture wants durable knowledge, not everything the agent touched; Principle 3 ("minimal but complete") is the filter - if removing it doesn't affect decision quality, it doesn't exist.
 
-The mirror test for what stays out: is it (a) regenerable, (b) confidential, or (c) machine-specific? Yes to any means it doesn't belong. This is the natural hook for the Twelve-Factor reference (see [12factor.md](12factor.md)), which draws the same lines: config in env, build artifacts out.
+The mirror test for what stays out: is it (a) regenerable, (b) confidential, or (c) machine-specific? Yes to any means it doesn't belong. This is the natural hook for the Twelve-Factor reference (see [12factor.md](12factor.md)), which draws the same lines: config in env, build artifacts out. Factor 3 keeps config in the environment (secrets and per-machine values never enter code); Factor 5 separates build from release from run (so generated artifacts never enter the repo).
 
 ### "Only inputs" claim is slightly overstated
 
@@ -169,11 +181,11 @@ The lecture's three exercises, with my take:
 ## References
 
 - [Slides: The Repository as System of Record](repo-system-of-record.html)
-- [Lecture 03 — the course page](https://walkinglabs.github.io/learn-harness-engineering/en/lectures/lecture-03-why-the-repository-must-become-the-system-of-record/)
-- [PR #65: Fix inaccurate git analogy in Lecture 03](https://github.com/walkinglabs/learn-harness-engineering/pull/65) — my Atomicity fix, merged
+- [Lecture 03: the course page](https://walkinglabs.github.io/learn-harness-engineering/en/lectures/lecture-03-why-the-repository-must-become-the-system-of-record/)
+- [PR #65: Fix inaccurate git analogy in Lecture 03](https://github.com/walkinglabs/learn-harness-engineering/pull/65) - my Atomicity fix, merged
 - [OpenAI: Harness Engineering](https://openai.com/index/harness-engineering/)
 - [Anthropic: Effective Harnesses for Long-Running Agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)
-- [Infrastructure as Code — Martin Fowler](https://martinfowler.com/bliki/InfrastructureAsCode.html)
+- [Infrastructure as Code by Martin Fowler](https://martinfowler.com/bliki/InfrastructureAsCode.html)
 - [ADR: Architecture Decision Records](https://adr.github.io/)
-- [The Twelve-Factor App](https://12factor.net/) — companion note: [12factor.md](12factor.md)
+- [The Twelve-Factor App](https://12factor.net/) - companion note: [12factor.md](12factor.md)
 - Related notes: [lecture01](../lecture01/), [lecture02](../lecture02/)
