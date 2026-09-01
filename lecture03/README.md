@@ -120,18 +120,7 @@ This is not an argument against quality control. Tests, linters, and reviews sti
 
 "System of record" implies an audit trail, and the lecture never mentions git history. Commit messages are a durable record of *why* decisions were made - exactly the thing the opening complains is scattered across Slack and heads.
 
-With one caveat: git history records *what* changed and *when*; the *why* survives only if the commit message carried it. So summarizing history for decisions means reading messages, reading structural diffs, and grepping for decision language. The techniques:
-
-| Technique | Command | Surfaces |
-|---|---|---|
-| The arc | `git log --oneline --graph` | Milestones, branch topology, abandoned lines of work |
-| Architecture births | `git log --diff-filter=A --name-only` | New files = decisions to introduce something |
-| Architecture deaths | `git log --diff-filter=D --name-only` | Deletions = decisions to abandon something |
-| Reorganizations | `git log --diff-filter=R --name-status` | Renames and moves = layout decisions |
-| Decision language | `git log -E --grep='migrate\|rename\|consolidate\|rewrite\|remove\|drop\|standardize'` | The refactor and maintenance layer |
-| Subsystem evolution | `git log --follow -p -- <file>` | How one file's design reasoning changed over time |
-| When did X disappear | `git log -S '<symbol>' --oneline` | Pickaxe: the commit that removed a specific thing |
-| Integration milestones | `git log --merges --oneline` | Each merge = an integration decision |
+With one caveat: git history records *what* changed and *when*; the *why* survives only if the commit message carried it. So summarizing history for decisions means reading messages, reading structural diffs, and grepping for decision language. In practice that's a handful of `git log` variations, each doing what its flags say: `--oneline --graph` for the arc, `--diff-filter=A`/`D`/`R` for births, deaths, and reorganizations, `-S '<symbol>'` for when something disappeared, `--merges` for integration milestones, `-E --grep` for refactor and maintenance language, and `--follow -p` for one file's evolution.
 
 For thin-message repos, pair with PRs: `gh pr list --state all`, then `gh pr view <n>` for the discussion - the issues/PRs habit applied to history.
 
