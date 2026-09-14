@@ -167,6 +167,38 @@ Three more loading facts the lecture's advice depends on and never states: impor
 
 `.claude/rules/` is the same trap one layer over. A rule file with no `paths` frontmatter loads at launch with the same priority as `.claude/CLAUDE.md`, so moving a paragraph out of the entry file into `.claude/rules/foo.md` and stopping there saves nothing. Only rules carrying a `paths` glob are conditional, and they load when the agent reads a matching file, not on any other trigger. Imports resolving outside the working directory are gated behind an approval dialog, and rules reached through a symlink to such a path need that approval too - after which only the ones without `paths` load, so adding a glob to a shared symlinked rule is what stops it loading.
 
+`.claude/rules/frontmatter.md` is what the working version looks like:
+
+````markdown
+---
+paths:
+  - "lecture*/*.md"
+  - "lecture*/**/*.md"
+---
+
+# Front matter
+
+If you create a note, it starts with:
+
+```yaml
+---
+layout: default
+permalink: /lectureNN/
+---
+```
+
+A markdown file with no front matter is served raw as `.md` and gets no
+layout, no top nav, and no theme toggle. There is no config-level
+auto-conversion; the front matter is what opts a file in.
+````
+
+`/context` is how you tell whether it loaded: the file is absent at session
+start and appears once the agent reads something matching the glob. Four ways
+the glob fails silently: `paths` written as a string rather than a YAML list;
+the trigger being a file read, not every tool use; brace expansion counting
+against a shared budget of 1,000 patterns; and a missing closing `---`, which
+demotes the file to the unconditional case above.
+
 The harness already ships the pattern the lecture is reaching for. Auto memory keeps an index in context every session (`MEMORY.md`, first 200 lines or 25 KB, whichever comes first) alongside one topic file per memory, read with ordinary file tools only when needed. That is "overview first, details on request" with the loading rule stated, and it is the same shape the lecture wants for `AGENTS.md` plus topic docs.
 
 This is the difference between the lecture's architecture being advisory and being real. The file layout can be perfect and the tokens still get spent at startup - or a rule can be invisible because nothing ever tripped its condition.
