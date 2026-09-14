@@ -11,9 +11,19 @@ Notes from [lecture 4](https://walkinglabs.github.io/learn-harness-engineering/e
 
 - [Lecture summary](#lecture-summary)
 - [Key concepts](#key-concepts)
-- [What makes sense](#what-makes-sense)
-- [Inaccuracies found](#inaccuracies-found)
-- [What's missing](#whats-missing)
+- [Where I land](#where-i-land)
+- [What the lecture gets wrong](#what-the-lecture-gets-wrong)
+  - [The token math uses two different context windows](#the-token-math-uses-two-different-context-windows)
+  - [The citation is for the wrong genre of evidence](#the-citation-is-for-the-wrong-genre-of-evidence)
+  - [The headline number is attributed to the wrong change](#the-headline-number-is-attributed-to-the-wrong-change)
+  - [A scoped exception filed as a contradiction](#a-scoped-exception-filed-as-a-contradiction)
+  - ["Source, applicability, expiry" on every rule rebuilds the bloat](#source-applicability-expiry-on-every-rule-rebuilds-the-bloat)
+  - [AGENTS.md is not one file for every tool](#agentsmd-is-not-one-file-for-every-tool)
+- [What I would do instead](#what-i-would-do-instead)
+  - [Split, don't reposition](#split-dont-reposition)
+  - [Make the split actually unload](#make-the-split-actually-unload)
+  - [Audit what a mechanism can check](#audit-what-a-mechanism-can-check)
+  - [What belongs where](#what-belongs-where)
   - [Instructions are not gates](#instructions-are-not-gates-what-a-rule-cannot-enforce)
 - [Exercises](#exercises)
 - [References](#references)
@@ -44,7 +54,9 @@ Worked example: a SaaS team's `AGENTS.md` went 50 → 600 lines mixing stack ver
 - **Can't Tell What Matters** - uniform formatting hides the difference between a red line and a suggestion.
 - **Packing cubes** - the lecture's metaphor for topic docs: one cube per subject, so finding a charger does not mean emptying the bag.
 
-## What makes sense
+## Where I land
+
+The design advice holds. The defects are in the evidence: two inconsistent token counts, a paper cited for a conclusion it does not support, and a case study whose headline gain cannot be separated from a second change made at the same time.
 
 This is the method for a rule the earlier lectures only asserted. [Lecture 01](../lecture01/) called `AGENTS.md` "a map, not an encyclopedia"; [lecture 02](../lecture02/) said ~100 lines and "if it does not fit, split it into a `docs/` directory"; neither said how to split or what happens when you don't. Lecture 04 supplies the cut lines, the file sizes, and the failure modes.
 
@@ -54,9 +66,9 @@ The two lectures converge on the same file size from different directions: lectu
 
 Per-rule lifecycle is the strongest idea in the lecture. Source, applicability, expiry, and a regular audit turns "add a rule" from a reflex into a decision with a cost. The lecture's line - "manage your instructions the way you manage code dependencies" - is the same move as [Infrastructure as Code](https://martinfowler.com/bliki/InfrastructureAsCode.html) from lecture 03: make the implicit artifact explicit, versioned, and reviewable.
 
-And the numbers answer lecture 03's weakest spot. Lecture 03's transformation story reported "70% of tasks required human intervention, quality improved significantly" with no matching before/after pair. Lecture 04 reports 45% → 72% on the same task set, which is the shape an anecdote needs to read as evidence.
+The fix it leads with is the weaker of the two it gives, and the split it does recommend only buys anything if the moved file stops loading. Both are in [What I would do instead](#what-i-would-do-instead).
 
-## Inaccuracies found
+## What the lecture gets wrong
 
 ### The token math uses two different context windows
 
@@ -78,8 +90,6 @@ The honest version: information at the extremes is used more reliably than infor
 
 The citation is the part that does not hold. The design conclusion is sound, and something in the neighborhood of it is well supported - instruction adherence is generally observed to decay with context length, which is a real reason to keep the always-loaded file short. But Liu et al. is a retrieval result wearing the clothes of a compliance result. The lecture cites it for a claim about rule-following in an `AGENTS.md`, and no reading of that paper supports one, because retrieval is not what the lecture is talking about. It needs a study that places an instruction at varying positions and scores compliance. It has none, so exercise 3 - one critical constraint at top, middle, and bottom, 5+ runs per position - is the only instrument in the lecture that could settle the question, and the lecture leaves it as homework. The mismatch is not a matter of degree: at no strength does the lecture's citation license a conclusion about how an agent follows a rule.
 
-There is also an ordering problem in the fix. "Put it at the top or bottom" is a patch that keeps the 600-line file; splitting is the actual repair, and after a correct split the entry file is 80 lines where everything is near an extreme anyway. The lecture gives both, but leads with position, which is the weaker of the two.
-
 ### The headline number is attributed to the wrong change
 
 The refactor made four changes at once: the entry file went 600 → 80 lines, three topic docs were created, links were added, and historical notes were either converted into test cases or deleted outright.
@@ -100,11 +110,33 @@ The distinction matters because "contradiction" is the label that justifies dele
 
 Applied literally to all 15 hard constraints in the entry file, three fields of metadata per rule roughly triples that section - the same file growth the lecture is arguing against. Metadata belongs with the topic doc for anything that lives in one, and it only earns its place on rules whose provenance is genuinely non-obvious. "Do not use `eval()`" does not need a source note.
 
-The same problem appears at a larger scale. Fifteen hard constraints plus "put important items at the top" means the top of the entry file is entirely hard constraints, and within that section position no longer discriminates anything. When every line is a red line, the agent is back to having no signal - the "can't tell what matters" failure mode, reintroduced by the fix.
+The same problem appears at a larger scale, and it undercuts the lecture's own ordering advice. Fifteen hard constraints plus "put important items at the top" means the top of the entry file is entirely hard constraints, and once every line there is a red line, position stops discriminating anything - the "can't tell what matters" failure mode, reintroduced by the fix. See [Split, don't reposition](#split-dont-reposition) for what to do instead.
 
-## What's missing
+### AGENTS.md is not one file for every tool
 
-### "On demand" is not automatic - the loading mechanism is absent
+The lecture uses `AGENTS.md` as the name of the entry file throughout. Claude Code reads `CLAUDE.md`, not `AGENTS.md` - a repo with only `AGENTS.md` gives Claude Code no instructions at all, and nothing warns; `/context` shows an empty memory-file list. The tool-agnostic fix is `AGENTS.md` as the source of truth plus a `CLAUDE.md` whose first line is `@AGENTS.md`, or a symlink when there are no Claude-only additions. A copy of either drifts.
+
+Loading semantics differ per tool in ways that change where rules belong. Codex concatenates instruction files from the repo root down to the launch directory and stops once the total hits `project_doc_max_bytes` (32 KiB by default), root first - so a bloated root file silently crowds out every nested file beneath it, which is the lecture's own failure mode with a different mechanism. A rule that lives only in `packages/api/AGENTS.md` never reaches a Codex session started at the root, and never reaches a Claude Code task that does not open that subtree. Universal rules belong in root.
+
+The lecture's sizes (50-200 for the entry file, 50-150 for topic docs) also sit under no measured ceiling. [lecture 01](../lecture01/) and [lecture 02](../lecture02/) both say ~100, [lecture 03](../lecture03/) says 50-100, this one says 50-200. They agree on the order of magnitude, which is the useful part; the exact bound is a convention, not a finding.
+
+## What I would do instead
+
+### Split, don't reposition
+
+"Put it at the top or bottom" is a patch that keeps the 600-line file; splitting is the repair, and after a correct split the entry file is 80 lines where everything is near an extreme anyway. The lecture gives both, but leads with position, which is the weaker of the two.
+
+The order that works:
+
+1. **Does the rule need to be always-loaded at all?** Cut it or move it out. This is upstream of the two steps below and the only one that always helps.
+2. **Split, and verify the split unloads.** A move that does not stop the file loading is a move in name only - see [Make the split actually unload](#make-the-split-actually-unload).
+3. **Only for what stays, use position.** Top over middle, hard constraints first.
+
+What may move at all depends on what happens when the rule is absent. A **judgment** rule ("prefer composition over inheritance") is fine in a conditional file - if the task never comes up, its absence costs nothing. A **universal constraint** ("never publish without approval") is not: absence there means it does not apply, and the condition that would have loaded it may never trip. Keep those at the top of the always-loaded file, and read [Instructions are not gates](#instructions-are-not-gates-what-a-rule-cannot-enforce) before trusting either placement.
+
+Position has a failure mode of its own, and the lecture walks into it: once the top of the entry file is fifteen hard constraints, position stops discriminating anything, because every line is at the top.
+
+### Make the split actually unload
 
 The lecture's central mechanism is that topic docs are "loaded only when needed." It never says what makes that true, and in Claude Code the obvious implementation does not work.
 
@@ -124,15 +156,7 @@ The harness already ships the pattern the lecture is reaching for. Auto memory k
 
 This is the difference between the lecture's architecture being advisory and being real. The file layout can be perfect and the tokens still get spent at startup - or a rule can be invisible because nothing ever tripped its condition.
 
-### AGENTS.md is not one file for every tool
-
-The lecture uses `AGENTS.md` as the name of the entry file throughout. Claude Code reads `CLAUDE.md`, not `AGENTS.md` - a repo with only `AGENTS.md` gives Claude Code no instructions at all, and nothing warns; `/context` shows an empty memory-file list. The tool-agnostic fix is `AGENTS.md` as the source of truth plus a `CLAUDE.md` whose first line is `@AGENTS.md`, or a symlink when there are no Claude-only additions. A copy of either drifts.
-
-Loading semantics differ per tool in ways that change where rules belong. Codex concatenates instruction files from the repo root down to the launch directory and stops once the total hits `project_doc_max_bytes` (32 KiB by default), root first - so a bloated root file silently crowds out every nested file beneath it, which is the lecture's own failure mode with a different mechanism. A rule that lives only in `packages/api/AGENTS.md` never reaches a Codex session started at the root, and never reaches a Claude Code task that does not open that subtree. Universal rules belong in root.
-
-The lecture's sizes (50-200 for the entry file, 50-150 for topic docs) also sit under no measured ceiling. [lecture 01](../lecture01/) and [lecture 02](../lecture02/) both say ~100, [lecture 03](../lecture03/) says 50-100, this one says 50-200. They agree on the order of magnitude, which is the useful part; the exact bound is a convention, not a finding.
-
-### The audit is a convention, not a mechanism
+### Audit what a mechanism can check
 
 "Audit regularly and delete outdated entries" is advice with no enforcement, and the lecture itself has just explained why the discipline fails: deletion feels risky, addition feels free. The fix is the [lecture 02](../lecture02/) pattern - move what can be checked out of prose and into an exit code. For an instruction file that means a CI check on the size of the entry file, a check that every linked path resolves, and a rule that a constraint without an owner fails the build.
 
@@ -140,7 +164,7 @@ Two habits from the ecosystem's own tooling are worth stealing. The `claude-md-i
 
 There is a validation step the lecture's audit omits entirely: run the commands the file names. A checklist pass does not prove `make test` still exists. Broken commands hide behind passing scores.
 
-### What belongs where: a destination without a test
+### What belongs where
 
 The lecture says history notes should be "converted to test cases or deleted," which names the destination but not the decision. The operational tests:
 
