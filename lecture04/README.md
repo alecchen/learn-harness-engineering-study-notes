@@ -179,7 +179,7 @@ Two habits from the ecosystem's own tooling are worth stealing. The `claude-md-i
 
 There is a validation step the lecture's audit omits entirely: run the commands the file names. A checklist pass does not prove `make test` still exists. Broken commands hide behind passing scores.
 
-**A gate can be tested; a rule can only be audited.** That asymmetry is why this section is short on mechanism. A permission rule fires or it does not, and the mutation test proves which. A prose rule has no output to observe. Its value is P(the situation arises) x (behavior change | it arises), and the second term is not cheaply measurable - you would have to know what the agent would have done without it.
+A permission rule fires or it does not, and the mutation test proves which. A prose rule has no output to observe, so it can only be audited, and that asymmetry is why this section is short on mechanism. A rule's value is P(the situation arises) x (behavior change | it arises), and the second term is not cheaply measurable - you would have to know what the agent would have done without it.
 
 The first term is measurable, and it is where the audit belongs. A rule whose condition never arose is indistinguishable from a rule that works, and that ambiguity is resolved by deletion, not by more analysis.
 
@@ -203,7 +203,7 @@ This lecture argues to split instructions, then relies on them for the one thing
 
 The project this repo belongs to hit that boundary from the other side. My `CLAUDE.md` there already carried a publishing rule: `git push`, `git tag`, and `gh release` need explicit approval every time, an approved release is approval for that version only, and `--no-verify` is never allowed. On 2026-09-13 an agent pushed `v0.1.5`, `v0.1.6`, and `v0.1.7` and published three GitHub releases while I was away from the terminal. The rule was in context, correctly written, and unenforced. The write-up is [Guarding agent-driven git push, tag, and release](https://github.com/alecchen/ccbunshin/blob/main/docs/HARNESS_PUBLISH_GATING.md), and its structure is the general recipe.
 
-**A rule has three possible destinations, and only one of them is a gate.**
+**A rule can live in one of three places.**
 
 | kind | example | where it lives | what it does |
 |---|---|---|---|
@@ -213,11 +213,11 @@ The project this repo belongs to hit that boundary from the other side. My `CLAU
 
 The lecture's hard-constraints section mixes the first two kinds into the third's slot and calls the result non-negotiable. `Never deploy on Fridays` is prose, sits in a file, and cannot stop a Friday deploy. It is written as an absolute and reads like one.
 
-Prose still has one property a gate does not: **it is always in context.** A permission rule fires only on a matching tool call, and a hook fires only for the tools in its matcher. An agent that never runs the gated command never encounters the gate. The useful division is to keep prose for the reasoning that generalizes to cases nobody anticipated, and move the subset that must hold to a mechanism. The gate replaces the enforcement, never the explanation - hard constraints stay worth writing down, because they tell the agent which parts of its own judgment it should not trust.
+Prose still has one property a gate does not: **it is always in context.** A permission rule fires only on a matching tool call, and a hook fires only for the tools in its matcher. An agent that never runs the gated command never encounters the gate. The useful division is to keep prose for the reasoning that generalizes to cases nobody anticipated, and move the subset that must hold to a mechanism. The gate replaces the enforcement and leaves the explanation in prose, where it still does work: hard constraints stay worth writing down because they tell the agent which parts of its own judgment it should not trust.
 
 The harness's own documentation states the same boundary in one sentence: CLAUDE.md content "is delivered as a user message after the system prompt," settings "are enforced by the client regardless of what Claude decides to do," and memory files "shape Claude's behavior but are not a hard enforcement layer." That is the lecture's hard-constraints section, described from the other side.
 
-**Mechanical gates fail in two directions, and only one of them is visible.**
+**A mechanical gate can fail in two directions.**
 
 The first is a gate that discriminates wrong: too broad and it prompts on innocent work, too narrow and it misses the case it was built for. A gate that fires on harmless local commands trains the operator to approve without reading - the same "can't tell what matters" failure the lecture diagnoses in prose, arriving through the fix instead of the problem.
 
@@ -225,7 +225,7 @@ The second is worse. **A text-matching gate that never matches produces no outpu
 
 The failure lands harder for gates than for prose. A stale prose rule gets diluted by everything around it and competes for attention; a stale gate has exactly one job and does not do it, with nothing in the transcript to say so. A well-written permission rule and a rule discarded at load look identical from the outside - and MCP rules with arguments are discarded at load outright, which is a worse mode than a plain non-match because the file never stops advertising them.
 
-**Writing the gate is the cheap half. Proving it fires is the expensive half.**
+**The expensive half is proving the gate fires.**
 
 That is the structural difference from the lecture's audit advice. "Audit regularly and delete outdated entries" assumes the hard part is deciding what stays. For a mechanism, the hard part is verification, and the verification needs a way to observe the result. How you build that depends on what the gate actually does.
 
