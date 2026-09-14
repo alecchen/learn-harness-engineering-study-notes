@@ -58,7 +58,7 @@ And the numbers answer lecture 03's weakest spot. Lecture 03's transformation st
 
 ## Inaccuracies found
 
-### The token math uses two different context windows in one argument
+### The token math uses two different context windows
 
 The vicious-cycle section establishes "say your agent has a 200K token window (Claude's standard). A bloated instruction file might consume 10-20K tokens." Core Concepts then defines Instruction Bloat as "10-15% of the context window" and, in the next sentence, calls 10,000-20,000 tokens "8-15% of a 128K window." Three percentages for one quantity, resting on two different windows.
 
@@ -66,9 +66,9 @@ The arithmetic is only self-consistent on the 128K basis (20,000 / 128,000 = 15.
 
 Worth a sanity check too: 20,000 tokens over 600 lines is about 33 tokens per line, roughly twice what markdown prose costs. The upper bound only holds for a file that is mostly code blocks. A typical 600-line instruction file is nearer 8,000-10,000 tokens - still worth splitting, but the scare number is inflated.
 
-### "Lost in the middle" is a measured tendency, presented as a guarantee
+### "Lost in the middle" is a measured tendency, not a guarantee
 
-Liu et al. tested how well models retrieve and use a relevant passage placed at various positions in a long input of distractor documents. That is multi-document QA and key-value retrieval. It is not instruction compliance in an `AGENTS.md`, and the paper makes no claim about it. The lecture converts the finding into "line 300 will almost certainly be ignored" - a certainty the cited work does not carry, applied to a task it did not measure.
+Liu et al. tested how well models retrieve and use a relevant passage placed at various positions in a long input of distractor documents. That is multi-document QA and key-value retrieval. It is not instruction compliance in an `AGENTS.md`, and the paper makes no claim about it. That gap becomes "line 300 will almost certainly be ignored" - a certainty the cited work does not carry, applied to a task it did not measure.
 
 The direction is plausible and worth designing around. The honest version: information at the extremes is used more reliably than information in the middle, the effect size varies with model, context length, and how well-structured the input is, and it shrinks as all three improve.
 
@@ -84,7 +84,7 @@ The 60% → 95% compliance jump is cleaner: the rule moved from line 300 to the 
 
 The numbers themselves are also unaudited. They are updated in [PR #75](https://github.com/walkinglabs/learn-harness-engineering/pull/75), which renames the section to "Illustrative Example" and adds a disclaimer that the figures are teaching illustrations rather than measurements from a real project.
 
-### A scoped exception is described as a contradiction
+### A scoped exception filed as a contradiction
 
 The contradiction example is "one says use TypeScript strict mode, another says some legacy files are allowed to use any." The second is an exception scoped to a directory, not a conflict; both rules can be satisfied at once. A real contradiction is two rules that cannot both hold, like "always use SQLAlchemy 2.0 syntax" and "always use raw SQL for reporting queries."
 
@@ -92,9 +92,9 @@ The distinction matters because "contradiction" is the label that justifies dele
 
 ### "Source, applicability, expiry" on every rule rebuilds the bloat
 
-Applied literally to all 15 hard constraints in the entry file, three fields of metadata per rule roughly triples that section - which is the file growth the lecture is arguing against. The metadata belongs with the topic doc for anything that lives in a topic doc, and it is only worth carrying for rules whose provenance is genuinely non-obvious. "Do not use `eval()`" does not need a source note.
+Applied literally to all 15 hard constraints in the entry file, three fields of metadata per rule roughly triples that section - the same file growth the lecture is arguing against. Metadata belongs with the topic doc for anything that lives in one, and it only earns its place on rules whose provenance is genuinely non-obvious. "Do not use `eval()`" does not need a source note.
 
-There is a second-order version of the same problem. Fifteen hard constraints plus "put important items at the top" means the top of the entry file is entirely hard constraints, and within that section position no longer discriminates anything. When every line is a red line, the agent is back to having no signal - the "can't tell what matters" failure mode, reintroduced by the fix.
+The same problem appears at a larger scale. Fifteen hard constraints plus "put important items at the top" means the top of the entry file is entirely hard constraints, and within that section position no longer discriminates anything. When every line is a red line, the agent is back to having no signal - the "can't tell what matters" failure mode, reintroduced by the fix.
 
 ## What's missing
 
@@ -126,14 +126,11 @@ The lecture's sizes (50-200 for the entry file, 50-150 for topic docs) also sit 
 
 "Audit regularly and delete outdated entries" is advice with no enforcement, and the lecture itself has just explained why the discipline fails: deletion feels risky, addition feels free. The fix is the [lecture 02](../lecture02/) pattern - move what can be checked out of prose and into an exit code. For an instruction file that means a CI check on the size of the entry file, a check that every linked path resolves, and a rule that a constraint without an owner fails the build.
 
-Two habits from the ecosystem's own tooling are worth stealing:
-
-- **Report before you edit, then re-score.** The `claude-md-improver` skill (see [References](#references)) audits first and outputs a quality report with per-criterion scores, gets approval, then applies targeted additions and re-scores. The report-before-edit order is what keeps an audit from becoming a rewrite.
-- **Never rewrite a whole file when targeted diffs pass.** A full rewrite destroys wording that survived contact with a real failure, and it inflates review burden. Targeted diffs also make the "does removing this change behavior?" question answerable per line.
+Two habits from the ecosystem's own tooling are worth stealing. The `claude-md-improver` skill (see [References](#references)) audits first, outputs a quality report with per-criterion scores, gets approval, then applies targeted additions and re-scores; the report-before-edit order is what keeps an audit from becoming a rewrite. And a full rewrite destroys wording that survived contact with a real failure. Targeted diffs are also what make the "does removing this change behavior?" question answerable per line.
 
 There is a validation step the lecture's audit omits entirely: run the commands the file names. A checklist pass does not prove `make test` still exists. Broken commands hide behind passing scores.
 
-### What belongs where: the lecture has the destination, not the test
+### What belongs where: a destination without a test
 
 The lecture says history notes should be "converted to test cases or deleted," which names the destination but not the decision. The operational tests:
 
@@ -147,7 +144,7 @@ Absolutes still earn their place for safety, data loss, and format contracts, an
 
 ### Instructions are not gates: what a rule cannot enforce
 
-The lecture argues to split instructions, then relies on instructions for the one thing they cannot do. Its worked example ends with security-constraint compliance rising 60% -> 95%, which is still a one-in-twenty failure on a rule the file calls a hard constraint. Prose moves the rate; it does not set it. If the outcome has to hold, the enforcement has to sit somewhere other than the file.
+This lecture argues to split instructions, then relies on them for the one thing they cannot do. Its worked example ends with security-constraint compliance rising 60% -> 95%, which is still a one-in-twenty failure on a rule the file calls a hard constraint. Prose moves the rate; it does not set it. If the outcome has to hold, the enforcement has to sit somewhere other than the file.
 
 The project this repo belongs to hit that boundary from the other side. My `CLAUDE.md` there already carried a publishing rule: `git push`, `git tag`, and `gh release` need explicit approval every time, an approved release is approval for that version only, and `--no-verify` is never allowed. On 2026-09-13 an agent pushed `v0.1.5`, `v0.1.6`, and `v0.1.7` and published three GitHub releases while I was away from the terminal. The rule was in context, correctly written, and unenforced. The write-up is [Guarding agent-driven git push, tag, and release](https://github.com/alecchen/ccbunshin/blob/main/docs/HARNESS_PUBLISH_GATING.md), and its structure is the general recipe.
 
@@ -173,12 +170,15 @@ The failure lands harder for gates than for prose. A stale prose rule gets dilut
 
 **Writing the gate is the cheap half. Proving it fires is the expensive half.**
 
-That is the structural difference from the lecture's audit advice. "Audit regularly and delete outdated entries" assumes the hard part is deciding what stays. For a mechanism, the hard part is verification, and the verification needs an instrument:
+That is the structural difference from the lecture's audit advice. "Audit regularly and delete outdated entries" assumes the hard part is deciding what stays. For a mechanism, the hard part is verification, and the verification needs a way to observe the result. How you build that depends on what the gate actually does.
 
-- **Deny, not ask, when you are testing.** An `ask` needs a person to confirm the prompt appeared - the agent cannot see permission dialogs, so an approved command and an un-gated one look identical in the tool result. A `deny` comes back as a tool result, so the loop closes without a human.
-- **Mutate to the mode you are actually in.** Temporarily point the escalation at the mode the session really reports, run one publish-shaped command against a remote that cannot resolve, confirm the block, then restore. Mutating to the mode you assumed you were in matches nothing and proves nothing while looking like a failure.
-- **Test per tool.** Gates attach to tool names. A gate tested through the native shell tool says nothing about the same command reaching the machine through an MCP shell server, which is how the second incident in that write-up happened: a matcher of `"Bash"` and a session that had stopped using the Bash tool entirely.
-- **A case table beats a live test.** Synthetic payloads fed to the hook prove the classifier's logic with nothing executed and no prompts to answer.
+A hook that makes a decision can be fed synthetic payloads with nothing executed and no prompts to answer: a case table exercises the classifier's logic directly, which is the cheapest instrument available and the one to reach for first.
+
+A permission rule cannot be tested that way, because the rule is matched by the harness rather than by code you can call. The instrument is the mutation. Temporarily point the rule's condition at the mode the session actually reports, run one publish-shaped command against a remote that cannot resolve, and confirm the block comes back in the tool result, then restore. Mutating to the mode you assumed you were in matches nothing and proves nothing while looking like a failure.
+
+Either way, prefer testing the deny path. A denial returns as a tool result, so the loop closes without a human. An `ask` needs a person to say they saw the prompt - the agent cannot see permission dialogs, so an approved command and an un-gated one look identical from the agent's side.
+
+And test per tool. Gates attach to tool names, so a gate verified through the native shell says nothing about the same command reaching the machine through an MCP shell server. That gap is how the second incident in the write-up happened: a matcher of `"Bash"` and a session that had stopped using the Bash tool entirely.
 
 **Some constraints cannot be gated locally at all.** Script indirection is the standing example: `bash deploy.sh` is a clean line to every command-text gate no matter what the script contains. What is left is a server-side gate, and in that project it is a GitHub environment with a required reviewer on the release job, which holds regardless of what any local agent does. The same shape applies here, with a smaller blast radius: GitHub Pages builds from `main` and there is no staging environment to require review on, so this repo has no server-side gate on publication - only the conventions in `CLAUDE.md`. A mistaken publish here is a commit on a static site, which a follow-up commit reverses. The ccbunshin incident published a release that `install.sh` resolves by latest, so the same mistake was not reversible by the next commit.
 
