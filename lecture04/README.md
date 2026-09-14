@@ -179,6 +179,24 @@ Two habits from the ecosystem's own tooling are worth stealing. The `claude-md-i
 
 There is a validation step the lecture's audit omits entirely: run the commands the file names. A checklist pass does not prove `make test` still exists. Broken commands hide behind passing scores.
 
+**A gate can be tested; a rule can only be audited.** That asymmetry is why this section is short on mechanism. A permission rule fires or it does not, and the mutation test proves which. A prose rule has no output to observe. Its value is P(the situation arises) x (behavior change | it arises), and the second term is not cheaply measurable - you would have to know what the agent would have done without it.
+
+The first term is measurable, and it is where the audit belongs. A rule whose condition never arose is indistinguishable from a rule that works, and that ambiguity is resolved by deletion, not by more analysis.
+
+Five instruments, cheapest first:
+
+1. **Convert what converts.** Any rule naming a specific action can often become a hook, permission rule, or CI check. It leaves the prose audit entirely and becomes testable by the methods in [Instructions are not gates](#instructions-are-not-gates-what-a-rule-cannot-enforce). Run this pass first, because it shrinks the problem.
+2. **Run what the file names.** Commands, linked paths, script names. Mechanical, no judgment needed.
+3. **Take a trigger census.** For each remaining rule, did its condition ever occur? Grep the transcripts under `~/.claude/projects/` for the paths, commands, and task types the rule concerns. Better: a `PreToolUse` or `UserPromptSubmit` hook that logs when the condition arises and blocks nothing. False positives cost a log line, so it can be broad, and it gives a census you can trust instead of one you inferred.
+4. **Take a violation census.** For "never X" rules, did X happen? A violation means the rule is failing and belongs in a gate. No violation *and* no near miss - the agent never met the temptation and pulled back - means inert.
+5. **Judge relevance, not compliance, with a model.** "Was rule R relevant to any decision in this session?" is an easy question with a reliable answer. "Did the agent comply?" is not. Reading transcripts for relevance extends the census to rules grep cannot see.
+
+A rule with zero triggers in a large corpus is not proven useless. It is unfalsifiable, and unfalsifiable rules never get deleted, which is how a file reaches 600 lines. When a rule matters and the census cannot settle it, run the deletion as an experiment: remove the rule, run the task set, compare. That is exercise 2's control applied to a rule rather than to a file split. The census exists to tell you which two or three rules are worth that cost.
+
+Two structural moves matter more than any measurement. A rule whose source is not an observed failure is speculative - it does not need testing, it needs a source note saying which failure produced it, and absent one, it goes. And every rule that survives the audit gets an expiry date, so an unaudited rule expires to deletion instead of persisting by default. That inverts the incentive the lecture diagnoses: addition currently feels free, so make persistence carry the cost.
+
+The output is not a grade per rule. It is a smaller file plus a trigger census, and the acknowledgement that what remains is managed by judgment with a date on it. Inert prose fails the same way a stale gate does: it costs tokens and attention every session, and nothing in the transcript says it is not working.
+
 ### Instructions are not gates: what a rule cannot enforce
 
 This lecture argues to split instructions, then relies on them for the one thing they cannot do. Its worked example ends with security-constraint compliance rising 60% -> 95%, which is still a one-in-twenty failure on a rule the file calls a hard constraint. Prose moves the rate; it does not set it. If the outcome has to hold, the enforcement has to sit somewhere other than the file.
