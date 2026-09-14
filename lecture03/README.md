@@ -3,7 +3,7 @@ layout: default
 permalink: /lecture03/
 ---
 
-# Lecture 03 — Why the Repository Must Become the System of Record
+# Lecture 03 - Why the Repository Must Become the System of Record
 
 Notes from [lecture 3](https://walkinglabs.github.io/learn-harness-engineering/en/lectures/lecture-03-why-the-repository-must-become-the-system-of-record/).
 
