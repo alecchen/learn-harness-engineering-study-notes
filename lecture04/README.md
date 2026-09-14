@@ -255,7 +255,7 @@ The second is a wrong-shell problem with the same shape. The company default she
 
 I tried the instruction route first, and wrote it the way this note recommends elsewhere - named subject, absolute, failure stated. "The shell is tcsh" plus a mandatory script-first rule, never use bash syntax, always use tcsh equivalents. It did not hold. That instruction has to be in context for every shell call to do its job, so it re-derives every time and competes with every other line, which is the entry-file argument in this very lecture applied to a rule that cannot be trimmed.
 
-The fix was configuration, not instruction: `terminal.integrated.defaultProfile.linux` set to `tcsh` so the human's interactive terminal is the company shell, and `terminal.integrated.automationProfile.linux` plus `chat.tools.terminal.terminalProfile.linux` set to `bash` so anything an agent runs goes to bash. The agent never encounters the tcsh problem because it never sees tcsh. The instruction became unnecessary rather than obeyed, which is the outcome to aim for: a rule the mechanism deletes is better than a rule the mechanism enforces, and both beat a rule that has to be remembered.
+The fix was configuration, not instruction: `terminal.integrated.defaultProfile.linux` set to `tcsh` so the human's interactive terminal is the company shell, and `terminal.integrated.automationProfile.linux` plus [`chat.tools.terminal.terminalProfile.linux`](https://code.visualstudio.com/docs/agents/run/tools) set to `bash` so anything an agent runs goes to bash. The agent never encounters the tcsh problem because it never sees tcsh. The instruction became unnecessary rather than obeyed, which is the outcome to aim for: a rule the mechanism deletes is better than a rule the mechanism enforces, and both beat a rule that has to be remembered.
 
 ## Exercises
 
@@ -276,6 +276,7 @@ The lecture's three, with my take:
 - [HumanLayer: Harness Engineering for Coding Agents](https://www.humanlayer.dev/blog/skill-issue-harness-engineering-for-coding-agents)
 - [Guarding agent-driven git push, tag, and release](https://github.com/alecchen/ccbunshin/blob/main/docs/HARNESS_PUBLISH_GATING.md) - my write-up of the same problem one layer down: why a prose rule did not stop an agent from publishing, and the five-layer permissions / hooks / CI / server-side construction that does
 - [Nielsen Norman Group: Progressive Disclosure](https://www.nngroup.com/articles/progressive-disclosure/)
+- [VS Code: tools and terminal profiles for agents](https://code.visualstudio.com/docs/agents/run/tools) - the source for `chat.tools.terminal.terminalProfile`, which is what sends agent-run commands to a shell other than the one set for the human's integrated terminal
 
 ### Improving your own CLAUDE.md / AGENTS.md
 
