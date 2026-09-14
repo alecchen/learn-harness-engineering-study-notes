@@ -68,17 +68,21 @@ Worth a sanity check too: 20,000 tokens over 600 lines is about 33 tokens per li
 
 ### "Lost in the middle" is a measured tendency, not a guarantee
 
-Liu et al. tested how well models retrieve and use a relevant passage placed at various positions in a long input of distractor documents. That is multi-document QA and key-value retrieval. It is not instruction compliance in an `AGENTS.md`, and the paper makes no claim about it. That gap becomes "line 300 will almost certainly be ignored" - a certainty the cited work does not carry, applied to a task it did not measure.
+Liu et al. measured retrieval, not compliance. Their tasks are multi-document QA over NaturalQuestions-Open (2,655 paragraph-answer queries, one answer-bearing Wikipedia passage among k-1 Contriever distractors, at 10/20/30 documents) and synthetic key-value retrieval (75/140/300 UUID pairs), plus an open-domain retriever-reader case study. In every experiment the position being varied is the position of the answer-bearing span, and the model's job is to locate it and return it. The lecture's claim is about a rule at line 300 of an `AGENTS.md`, which differs on both axes that matter: compliance asks the model to change what it does rather than report what it found, and the rule competes with every other line in the file rather than sitting as the single relevant span among numbered distractors. The paper never places an instruction at varying positions, never measures rule-following, and never mentions system prompts or instruction files. Its closest sentence is about training-data layout - the task specification is "commonly placed at the beginning of the input context in supervised instruction fine-tuning data" - which is a hypothesis for primacy bias, not a measurement of it.
 
-The direction is plausible and worth designing around. The honest version: information at the extremes is used more reliably than information in the middle, the effect size varies with model, context length, and how well-structured the input is, and it shrinks as all three improve.
+The paper also declines the generalization rather than making it. Section 7 is a Conclusion with no Limitations section; "The answer to this question is ultimately downstream task-specific"; and the robustness criterion it states is a benchmark it is asking future work to run: "it is necessary to show that its performance is minimally affected by the position of the relevant information." The lecture reads that request as a result - "the agent will almost certainly ignore it," "very high probability of being ignored."
+
+What the paper does establish is a real U-shaped trend on its own tasks, and it is not something scale removes. Llama-2 7B is "solely recency biased" while 13B and 70B show the U-curve, and 70B with and without fine-tuning shows "largely similar trends." Instruction fine-tuning only "slightly reduces the worst-case performance disparity," and on 70B "minimally changes the positional bias severity." Extended-context models are "not necessarily better at using their input context" and, where the input fits both windows, are "nearly superimposed" on their non-extended counterparts. Query-aware contextualization drives key-value retrieval to near-perfect while "minimally affects performance trends in the multi-document question answering task," which is task dependence rather than a structural fix. GPT-3.5-Turbo's multi-document QA can drop "more than 20%" on a position change and, at 20 and 30 documents, fall below its closed-book 56.1%.
+
+The honest version: information at the extremes is used more reliably than information in the middle, on retrieval-style tasks where exactly one span is relevant. The magnitude varies with model, task, and context length, and it is not the kind of effect a larger model, a longer window, or instruction tuning reliably removes. That is a stronger argument for the lecture's design advice than the version this section previously gave, because there is no version of waiting it out.
 
 There is also an ordering problem in the fix. "Put it at the top or bottom" is a patch that keeps the 600-line file; splitting is the actual repair, and after a correct split the entry file is 80 lines where everything is near an extreme anyway. The lecture gives both, but leads with position, which is the weaker of the two.
 
 ### The headline number is attributed to the wrong change
 
-The refactor made four changes at once: the entry file went 600 → 80 lines, three topic docs were created, links were added, and historical notes were converted into test cases or deleted.
+The refactor made four changes at once: the entry file went 600 → 80 lines, three topic docs were created, links were added, and historical notes were either converted into test cases or deleted outright.
 
-That last one is a [lecture 02](../lecture02/) feedback-subsystem change - the subsystem lecture 02 calls the highest-ROI investment. Converting prose rules into executable checks plausibly carries a large share of the 45% → 72% gain, and the story cannot separate it from the split.
+That last one is a [lecture 02](../lecture02/) feedback-subsystem change - the subsystem lecture 02 calls the highest-ROI investment. Deleting the notes was a second subtraction, alongside the trim; converting them into checks is a mechanism the story never tests. Either branch carries a share of the 45% → 72% gain that the story cannot separate from the split.
 
 The 60% → 95% compliance jump is cleaner: the rule moved from line 300 to the top of the entry file, which is a position change, not a split. So the anecdote actually supports two claims - splitting helps, and position matters - and the lecture uses it for the first one only.
 
@@ -106,13 +110,17 @@ The lecture's central mechanism is that topic docs are "loaded only when needed.
 
 On-demand loading needs a mechanism that loads by location or trigger:
 
-- a nested `CLAUDE.md` / `AGENTS.md` in the directory the rules concern, loaded when the agent works in that subtree
-- a path-scoped `.claude/rules/*.md`, applied by glob
+- a nested `CLAUDE.md` / `AGENTS.md` in the directory the rules concern, loaded when the agent works in that subtree (documented, and reported not to fire in some clients - verify with `/context` or the `InstructionsLoaded` hook rather than assuming)
+- a path-scoped `.claude/rules/*.md`, carrying a `paths` glob in its frontmatter, which is what makes it conditional at all
 - a skill, loaded when its description matches the task
 
 Three more loading facts the lecture's advice depends on and never states: import chains stop after four hops with no error; an `@import` inside backticks or a fenced block is literal text and never loads; and content in a nested file is invisible to a session that never opens that subtree.
 
-This is the difference between the lecture's architecture being advisory and being real. The file layout can be perfect and the tokens still get spent at startup.
+`.claude/rules/` is the same trap one layer over. A rule file with no `paths` frontmatter loads at launch with the same priority as `.claude/CLAUDE.md`, so moving a paragraph out of the entry file into `.claude/rules/foo.md` and stopping there saves nothing. Only rules carrying a `paths` glob are conditional, and they load when the agent reads a matching file, not on any other trigger. Imports resolving outside the working directory are gated behind an approval dialog, and rules reached through a symlink to such a path need that approval too - after which only the ones without `paths` load, so adding a glob to a shared symlinked rule is what stops it loading.
+
+The harness already ships the pattern the lecture is reaching for. Auto memory keeps an index in context every session (`MEMORY.md`, first 200 lines or 25 KB, whichever comes first) alongside one topic file per memory, read with ordinary file tools only when needed. That is "overview first, details on request" with the loading rule stated, and it is the same shape the lecture wants for `AGENTS.md` plus topic docs.
+
+This is the difference between the lecture's architecture being advisory and being real. The file layout can be perfect and the tokens still get spent at startup - or a rule can be invisible because nothing ever tripped its condition.
 
 ### AGENTS.md is not one file for every tool
 
@@ -159,6 +167,8 @@ The project this repo belongs to hit that boundary from the other side. My `CLAU
 The lecture's hard-constraints section mixes the first two kinds into the third's slot and calls the result non-negotiable. `Never deploy on Fridays` is prose, sits in a file, and cannot stop a Friday deploy. It is written as an absolute and reads like one.
 
 Prose still has one property a gate does not: **it is always in context.** A permission rule fires only on a matching tool call, and a hook fires only for the tools in its matcher. An agent that never runs the gated command never encounters the gate. The useful division is to keep prose for the reasoning that generalizes to cases nobody anticipated, and move the subset that must hold to a mechanism. The gate replaces the enforcement, never the explanation - hard constraints stay worth writing down, because they tell the agent which parts of its own judgment it should not trust.
+
+The harness's own documentation states the same boundary in one sentence: CLAUDE.md content "is delivered as a user message after the system prompt," settings "are enforced by the client regardless of what Claude decides to do," and memory files "shape Claude's behavior but are not a hard enforcement layer." That is the lecture's hard-constraints section, described from the other side.
 
 **Mechanical gates fail in two directions, and only one of them is visible.**
 
@@ -208,6 +218,7 @@ The lecture's three, with my take:
 
 ### Improving your own CLAUDE.md / AGENTS.md
 
+- [How Claude remembers your project (Claude Code docs)](https://code.claude.com/docs/en/memory) - the primary source for the loading claims above: imports expand at launch with a four-hop limit, nested files load on subtree access, rules need `paths` frontmatter to be conditional, external imports need approval, root `CLAUDE.md` survives `/compact`, and `/context` is the only check that reports what actually loaded
 - [agents-md skill (mblode/agent-skills)](https://github.com/mblode/agent-skills/blob/main/skills/agents-md/SKILL.md) - the dead-weight and harmful-precision tests; the `CLAUDE.md` → `@AGENTS.md` pointer pattern; the per-tool loading gotchas (imports expand at launch, four-hop limit, Codex's 32 KiB concatenation cap); a 12-check quick audit and a 49-check full audit
 - [claude-md-improver skill (anthropics/claude-plugins-official)](https://github.com/anthropics/claude-plugins-official/blob/main/plugins/claude-md-management/skills/claude-md-improver/SKILL.md) - discovery across root / package / local / global files, weighted quality scoring (A-F), a report-before-edit workflow, and targeted diffs for stale commands, missing setup, and undocumented gotchas
 - [Writing a good CLAUDE.md (HumanLayer)](https://www.humanlayer.dev/blog/writing-a-good-claude-md) - don't auto-generate or `/init` it
