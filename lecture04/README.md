@@ -15,15 +15,16 @@ Notes from [lecture 4](https://walkinglabs.github.io/learn-harness-engineering/e
 - [What the lecture gets wrong](#what-the-lecture-gets-wrong)
   - [The token math uses two different context windows](#the-token-math-uses-two-different-context-windows)
   - [The citation is for the wrong genre of evidence](#the-citation-is-for-the-wrong-genre-of-evidence)
-  - [The headline number is attributed to the wrong change](#the-headline-number-is-attributed-to-the-wrong-change)
-  - [A scoped exception filed as a contradiction](#a-scoped-exception-filed-as-a-contradiction)
+  - [The headline number cannot be attributed to the split](#the-headline-number-cannot-be-attributed-to-the-split)
+  - [A scoped exception treated as a contradiction](#a-scoped-exception-treated-as-a-contradiction)
   - ["Source, applicability, expiry" on every rule rebuilds the bloat](#source-applicability-expiry-on-every-rule-rebuilds-the-bloat)
   - [AGENTS.md is not one file for every tool](#agentsmd-is-not-one-file-for-every-tool)
+  - [The recommended sizes have no measured basis](#the-recommended-sizes-have-no-measured-basis)
 - [What I would do instead](#what-i-would-do-instead)
+  - [What belongs where](#what-belongs-where)
   - [Split, don't reposition](#split-dont-reposition)
   - [Make the split actually unload](#make-the-split-actually-unload)
-  - [Audit what a mechanism can check](#audit-what-a-mechanism-can-check)
-  - [What belongs where](#what-belongs-where)
+  - [The audit needs a mechanism, not discipline](#the-audit-needs-a-mechanism-not-discipline)
   - [Instructions are not gates](#instructions-are-not-gates-what-a-rule-cannot-enforce)
 - [Exercises](#exercises)
 - [References](#references)
@@ -90,7 +91,7 @@ The honest version: information at the extremes is used more reliably than infor
 
 The citation is the part that does not hold. The design conclusion is sound, and something in the neighborhood of it is well supported - instruction adherence is generally observed to decay with context length, which is a real reason to keep the always-loaded file short. But Liu et al. is a retrieval result wearing the clothes of a compliance result. The lecture cites it for a claim about rule-following in an `AGENTS.md`, and no reading of that paper supports one, because retrieval is not what the lecture is talking about. It needs a study that places an instruction at varying positions and scores compliance. It has none, so exercise 3 - one critical constraint at top, middle, and bottom, 5+ runs per position - is the only instrument in the lecture that could settle the question, and the lecture leaves it as homework. The mismatch is not a matter of degree: at no strength does the lecture's citation license a conclusion about how an agent follows a rule.
 
-### The headline number is attributed to the wrong change
+### The headline number cannot be attributed to the split
 
 The refactor made four changes at once: the entry file went 600 → 80 lines, three topic docs were created, links were added, and historical notes were either converted into test cases or deleted outright.
 
@@ -100,7 +101,7 @@ The 60% → 95% compliance jump reads as stronger evidence than it is. Two thing
 
 The numbers themselves are also unaudited. They are updated in [PR #75](https://github.com/walkinglabs/learn-harness-engineering/pull/75), which renames the section to "Illustrative Example" and adds a disclaimer that the figures are teaching illustrations, not measurements from a real project.
 
-### A scoped exception filed as a contradiction
+### A scoped exception treated as a contradiction
 
 The contradiction example is "one says use TypeScript strict mode, another says some legacy files are allowed to use any." The second is an exception scoped to a directory, not a conflict; both rules can be satisfied at once. A real contradiction is two rules that cannot both hold, like "always use SQLAlchemy 2.0 syntax" and "always use raw SQL for reporting queries."
 
@@ -118,9 +119,23 @@ The lecture uses `AGENTS.md` as the name of the entry file throughout. Claude Co
 
 Loading semantics differ per tool in ways that change where rules belong. Codex concatenates instruction files from the repo root down to the launch directory and stops once the total hits `project_doc_max_bytes` (32 KiB by default), root first - so a bloated root file silently crowds out every nested file beneath it, which is the lecture's own failure mode with a different mechanism. A rule that lives only in `packages/api/AGENTS.md` never reaches a Codex session started at the root, and never reaches a Claude Code task that does not open that subtree. Universal rules belong in root.
 
-The lecture's sizes (50-200 for the entry file, 50-150 for topic docs) also sit under no measured ceiling. [lecture 01](../lecture01/) and [lecture 02](../lecture02/) both say ~100, [lecture 03](../lecture03/) says 50-100, this one says 50-200. They agree on the order of magnitude, which is the useful part; the exact bound is a convention, not a finding.
+### The recommended sizes have no measured basis
+
+The lecture's sizes (50-200 for the entry file, 50-150 for topic docs) sit under no measured ceiling. [lecture 01](../lecture01/) and [lecture 02](../lecture02/) both say ~100, [lecture 03](../lecture03/) says 50-100, this one says 50-200. They agree on the order of magnitude, which is the useful part; the exact bound is a convention, not a finding.
 
 ## What I would do instead
+
+### What belongs where
+
+The lecture says history notes should be "converted to test cases or deleted," which names the destination but not the decision. This is step 1 of the three-step order in [Split, don't reposition](#split-dont-reposition), which is why it comes first here. The operational tests:
+
+- **Dead weight:** "would removing this cause the agent to make a mistake?" No means cut it. This is lecture 03's Principle 3 with a sharper question attached.
+- **Harmful precision:** "is this wrong on any plausible task in this repo?" A prohibition that is wrong one task in ten is still obeyed on that task, and the agent cannot tell it is the exception. `NEVER write comments` becomes `match the comment density of the file you are editing` - shorter, no exception list to maintain, and correct in a densely commented file without being told. This is a real answer to the lecture's "can't tell what matters" problem: some of the ambiguity is fixed by ranking rules, and some by phrasing rules so they cannot be wrong.
+- **Owned elsewhere:** user preferences and evolving project status load every session, are not repo knowledge, and drift silently because nothing in the codebase contradicts them. Those belong in auto-memory or a local file, not in the shared entry file.
+- **Already handled by the harness:** a rule that restates harness behavior is not free - the agent reconciles it against what the harness already does before it can act, and pays that cost on every task. "Always read a file before editing it" is a whole reconciliation for zero behavior change.
+- **Enforceable mechanically:** a rule a linter, a permission rule, or a hook can enforce belongs there instead of in prose. The instruction should document the mechanism, not stand in for it. See [Instructions are not gates](#instructions-are-not-gates-what-a-rule-cannot-enforce) below.
+
+Absolutes still earn their place for safety, data loss, and format contracts, and for rules the agent has been observed to break. The lecture's 15-constraint budget is a reasonable default for that set.
 
 ### Split, don't reposition
 
@@ -128,7 +143,7 @@ The lecture's sizes (50-200 for the entry file, 50-150 for topic docs) also sit 
 
 The order that works:
 
-1. **Does the rule need to be always-loaded at all?** Cut it or move it out. This is upstream of the two steps below and the only one that always helps.
+1. **Does the rule need to be always-loaded at all?** Cut it or move it out - [What belongs where](#what-belongs-where) is the test. This is upstream of the two steps below and the only one that always helps.
 2. **Split, and verify the split unloads.** A move that does not stop the file loading is a move in name only - see [Make the split actually unload](#make-the-split-actually-unload).
 3. **Only for what stays, use position.** Top over middle, hard constraints first.
 
@@ -156,25 +171,13 @@ The harness already ships the pattern the lecture is reaching for. Auto memory k
 
 This is the difference between the lecture's architecture being advisory and being real. The file layout can be perfect and the tokens still get spent at startup - or a rule can be invisible because nothing ever tripped its condition.
 
-### Audit what a mechanism can check
+### The audit needs a mechanism, not discipline
 
 "Audit regularly and delete outdated entries" is advice with no enforcement, and the lecture itself has just explained why the discipline fails: deletion feels risky, addition feels free. The fix is the [lecture 02](../lecture02/) pattern - move what can be checked out of prose and into an exit code. For an instruction file that means a CI check on the size of the entry file, a check that every linked path resolves, and a rule that a constraint without an owner fails the build.
 
 Two habits from the ecosystem's own tooling are worth stealing. The `claude-md-improver` skill (see [References](#references)) audits first, outputs a quality report with per-criterion scores, gets approval, then applies targeted additions and re-scores; the report-before-edit order is what keeps an audit from becoming a rewrite. And a full rewrite destroys wording that survived contact with a real failure. Targeted diffs are also what make the "does removing this change behavior?" question answerable per line.
 
 There is a validation step the lecture's audit omits entirely: run the commands the file names. A checklist pass does not prove `make test` still exists. Broken commands hide behind passing scores.
-
-### What belongs where
-
-The lecture says history notes should be "converted to test cases or deleted," which names the destination but not the decision. The operational tests:
-
-- **Dead weight:** "would removing this cause the agent to make a mistake?" No means cut it. This is lecture 03's Principle 3 with a sharper question attached.
-- **Harmful precision:** "is this wrong on any plausible task in this repo?" A prohibition that is wrong one task in ten is still obeyed on that task, and the agent cannot tell it is the exception. `NEVER write comments` becomes `match the comment density of the file you are editing` - shorter, no exception list to maintain, and correct in a densely commented file without being told. This is a real answer to the lecture's "can't tell what matters" problem: some of the ambiguity is fixed by ranking rules, and some by phrasing rules so they cannot be wrong.
-- **Owned elsewhere:** user preferences and evolving project status load every session, are not repo knowledge, and drift silently because nothing in the codebase contradicts them. Those belong in auto-memory or a local file, not in the shared entry file.
-- **Already handled by the harness:** a rule that restates harness behavior is not free - the agent reconciles it against what the harness already does before it can act, and pays that cost on every task. "Always read a file before editing it" is a whole reconciliation for zero behavior change.
-- **Enforceable mechanically:** a rule a linter, a permission rule, or a hook can enforce belongs there instead of in prose. The instruction should document the mechanism, not stand in for it. See [Instructions are not gates](#instructions-are-not-gates-what-a-rule-cannot-enforce) below.
-
-Absolutes still earn their place for safety, data loss, and format contracts, and for rules the agent has been observed to break. The lecture's 15-constraint budget is a reasonable default for that set.
 
 ### Instructions are not gates: what a rule cannot enforce
 
