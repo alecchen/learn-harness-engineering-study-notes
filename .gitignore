@@ -2,3 +2,4 @@ node_modules/
 test-results/
 _site/
 .jekyll-cache/
+.claude/settings.local.json
