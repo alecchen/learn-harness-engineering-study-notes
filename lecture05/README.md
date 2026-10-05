@@ -13,10 +13,11 @@ Notes from [lecture 5](https://walkinglabs.github.io/learn-harness-engineering/e
 - [Key concepts](#key-concepts)
 - [Where I land](#where-i-land)
 - [What the lecture leaves out](#what-the-lecture-leaves-out)
-  - [The clock-in ritual is an instruction, not a hook](#the-clock-in-ritual-is-an-instruction-not-a-hook)
+  - [The clock-in and clock-out routines](#the-clock-in-and-clock-out-routines)
   - [Compaction is steerable, and the lever has a name](#compaction-is-steerable-and-the-lever-has-a-name)
   - [Rewind is the other half, and it trades differently](#rewind-is-the-other-half-and-it-trades-differently)
-  - [Git checkpoints and session checkpoints are different mechanisms](#git-checkpoints-and-session-checkpoints-are-different-mechanisms)
+  - [Git commits are not session checkpoints](#git-commits-are-not-session-checkpoints)
+  - [Subagents isolate the work, not the state](#subagents-isolate-the-work-not-the-state)
 - [What the lecture gets wrong](#what-the-lecture-gets-wrong)
   - [Rebuild cost is stated as a finding and assigned as homework](#rebuild-cost-is-stated-as-a-finding-and-assigned-as-homework)
   - [The 60% threshold has nothing to measure it against](#the-60-threshold-has-nothing-to-measure-it-against)
@@ -32,7 +33,7 @@ Notes from [lecture 5](https://walkinglabs.github.io/learn-harness-engineering/e
 
 ## Lecture summary
 
-A session runs for thirty minutes, gets a feature mostly done, and hits the context wall. The next session has no idea which decisions were made, why option B beat option A, which files were already modified, or what state the tests are in. It spends fifteen minutes re-exploring, and it may take a different approach than the one the previous session settled on.
+The lecture's opening scenario runs like this. A session works for thirty minutes, gets a feature mostly done, and hits the context wall. The next one has no idea which decisions were made, why option B beat option A, which files were already modified, or what state the tests are in, so it spends fifteen minutes re-exploring and may land on a different approach than the one the previous session settled on.
 
 Context is finite and will stay finite, since window growth doesn't fix it. Agent context accumulates faster than the window expands, and it accumulates from codebase understanding, decision history, tool output, and conversation all at once.
 
@@ -54,17 +55,23 @@ The context-anxiety section comes last. Anthropic observed agents wrapping up wo
 
 ## Where I land
 
-The problem statement is the strongest in the sequence so far, and the least contestable. Nothing here is argued from a paper that measures something else. A fresh session genuinely does not know what the previous one decided, and the four artifacts named are a reasonable answer to that.
+The problem is real and narrower than the diagnosis, and the gap between the two is a model-generation effect.
+
+The opening says a fresh session doesn't know which files were changed or what state the tests are in, and spends fifteen minutes finding out. Two of those four no longer hold. Claude Code loads a git snapshot at session start, branch, status, and recent commits, so the changed-file list arrives before the agent does anything, and that is a harness feature rather than a file anyone maintains. Understanding the code still takes work, but discovering what moved is no longer part of it. Re-running verification is not the cost the lecture takes it for either, since the fresh run is ground truth and a recorded result is a claim from a session that no longer exists. This note reaches the same conclusion further down, about recording the command rather than the result.
+
+What survives is the half a git snapshot cannot reach. Reading the code tells you option B is implemented and never tells you option A was considered and rejected, because a rejected alternative leaves no trace in the artifact that outlived it. Drift is the same shape: with no record of the original requirement, each session's reading of the code becomes the new baseline, and nothing inside a session can detect the shift. Rationale is therefore the artifact's real job rather than status, which is why the split later in this note matters. `DECISIONS.md` is doing work nothing else does, and the status half of `PROGRESS.md` is the half the harness has already absorbed.
+
+That the premise narrows with each generation is the lecture's own model-dependence argument turned on its opening paragraph, and it is the one place the lecture stops applying it.
 
 The prescriptions are vaguer. [Lecture 02](../lecture02/) named state as one of five subsystems and gave it a file. [Lecture 03](../lecture03/) gave the repository ACID properties. This lecture is the first to spend a whole page on state across sessions, and it arrives at `PROGRESS.md` and `DECISIONS.md`, which is roughly where lecture 02 already was. What it adds is the reason state matters (the *why* is what dies, not the *what*), the failure modes, and the model-dependence.
 
 The model-dependence is the genuinely new contribution here, and it's the one line I'd keep if I kept one. A harness tuned for Sonnet 4.5 shipped resets that Opus 4.5 made unnecessary, so the harness carries an expiry date set by the model underneath it. [Lecture 04](../lecture04/) makes the same lifecycle argument about instruction rules: a component can be correct when it is written and unnecessary a year later, and nothing in the file says which one it has become.
 
-Where I'd push back is on what the lecture treats as given. Three of its four tools are things the agent has to remember to use, and lecture 04 spent a whole section establishing that a rule nothing enforces is a rule that gets skipped. The lecture hands you the clock-in checklist and no mechanism. Meanwhile the harness ships four things aimed at exactly this problem (`SessionStart` hooks, steerable compaction, `/rewind`, and session checkpoints independent of git) and the lecture names none of them. That is the gap in [What the lecture leaves out](#what-the-lecture-leaves-out).
+Where I'd push back is on what the lecture treats as given. Three of its four tools are things the agent has to remember to use, and lecture 04 spent a whole section establishing that a rule nothing enforces is a rule that gets skipped. The lecture hands you the clock-in checklist and no mechanism. Meanwhile the harness ships five things aimed at exactly this problem (`SessionStart` hooks, steerable compaction, `/rewind`, session checkpoints independent of git, and subagents with their own windows) and the lecture names none of them. That is the gap in [What the lecture leaves out](#what-the-lecture-leaves-out).
 
 ## What the lecture leaves out
 
-### The clock-in ritual is an instruction, not a hook
+### The clock-in and clock-out routines
 
 The lecture's Tool 4 is an `AGENTS.md` section:
 
@@ -97,6 +104,14 @@ The script cats `PROGRESS.md` and the last few lines of `DECISIONS.md` and exits
 
 The lecture's own framing already points at this. "Treat the agent like an engineer whose shift memory is wiped" describes something that fires at a lifecycle boundary, outside the agent's discretion, which is what a hook is and what a checklist entry is not.
 
+HumanLayer names hooks the other lever alongside skills, and their framing is broader than the determinism argument. Hooks are for "automated integration and deterministic control flow," which covers more than keeping a step from being skipped. The worked example is a typecheck hook that stays "completely silent" when it passes, so nothing enters the agent's context on success and only the errors surface on failure, where exit code 2 re-engages the agent on the problems. Quiet-on-success is the stronger property, because a hook that is guaranteed to run but costs context every time still cannot run often. They use the same mechanism for back-pressure, a fast typecheck whenever the agent stops, and call that build-out one of the highest-leverage things they have spent time on. Their first version flooded the window with 4,000 lines of passing tests, which is what a verification signal does when it reports its successes.
+
+That quiet-on-success idea is what the argument further down this note about recording the command rather than the result is reaching for. Swallowing the passing output takes the verification cost toward zero rather than merely keeping it small.
+
+Reading the two routines together also shows the check written down twice. `make check` appears in both, and the closing step commits the work the opening step was about to verify. Clocking out with a check and committing clean work means the repo starts the next session in a state that check already certified, so the opening check re-runs it to establish what clocking out just established.
+
+The clock-out copy is the one to keep. A check at the end runs at the single point where state last changed deliberately, which makes a failure attributable to the work that just finished, and the same result carries into the next session because the commit is right behind it. That is [lecture 02's](../lecture02/) smoke test before committing, which exists so a failure stops the commit rather than being discovered after it. The opening check earns its place back when the environment moved while nobody was looking: dependencies updated, another branch merged, the repo was cloned onto a second machine. The end-of-session check certifies a state this session last touched, not the one the next session is about to open. That makes the opening check conditional rather than redundant, which is exactly the kind of step a hook can decide for you, running `make check` and injecting the result only when something outside the last session changed the tree.
+
 ### Compaction is steerable, and the lever has a name
 
 The lecture's treatment of compaction is a binary: compaction or reset. In Claude Code it is a dial with three settings and a steering wheel.
@@ -117,7 +132,7 @@ The lecture describes a session that took a wrong turn and had to be abandoned. 
 
 For "I went down a path I want to abandon," rewind is both the more precise tool and the cheaper one: it truncates the conversation back to a prefix that was already cached, so the next request hits the earlier cache entry rather than building a new prefix the way compaction does. It also keeps the original: the doc's note is that summarizing doesn't change files on disk and the original messages stay in the transcript, so details are still referenceable. `/branch`, or `claude --continue --fork-session`, is the escape hatch when you want to try a different approach while keeping the current session intact.
 
-The limitations are the reason this is a complement to git checkpoints rather than a replacement, and they are all worth knowing before relying on it:
+The limitations are why this doesn't replace version control, and they are all worth knowing before relying on it:
 
 - Files modified by Bash commands aren't tracked. `rm`, `mv`, `cp`, and anything a script does are invisible to rewind.
 - Subagent edits generally aren't restored. A foreground forked skill's edits are; a background subagent's are not.
@@ -127,9 +142,9 @@ The limitations are the reason this is a complement to git checkpoints rather th
 
 The docs state the boundary plainly: checkpoints are for session-level recovery, "not a replacement for version control."
 
-### Git checkpoints and session checkpoints are different mechanisms
+### Git commits are not session checkpoints
 
-The lecture lists "git commits as checkpoints" as Tool 3, and the harness also has something called checkpoints. They share a word and almost nothing else. The differences are what make both worth having:
+The lecture lists "git commits as checkpoints" as Tool 3, and the harness also has something called checkpoints. They share a word and almost nothing else, and which one you reach for depends on the failure in front of you:
 
 | | git commit | `/rewind` checkpoint |
 |---|---|---|
@@ -142,7 +157,25 @@ The lecture lists "git commits as checkpoints" as Tool 3, and the harness also h
 | cost | a commit | free |
 | what it's for | permanent history and collaboration | undoing the last few turns |
 
-The lecture's instinct, to commit after each atomic unit, is right, and the two mechanisms complement each other. Git is the durable record and rewind is the cheap local undo. What the lecture can't say, because it names only one of them, is which one covers which failure. A wrong turn in the last ten minutes is a rewind. A wrong turn from yesterday is a revert.
+The lecture's opening scenario cannot be recovered from its own Tool 3 for that reason, because context exhausted mid-task means the incomplete work is uncommitted by definition. Anthropic's source names the same failure from the other end, since the moment before context runs out is when an agent is least likely to stop and commit carefully.
+
+The better argument for commits is the one that doesn't depend on continuity at all. What a commit captures cannot go stale the way a file can, and its message is the only unverifiable part of it. A progress file carrying "42/43 passing" is a claim from a session that no longer exists, while the diff underneath is ground truth about the repository at a timestamp. That is why git is still doing real work in a harness. It is the publish mechanism, the audit trail, and the rollback point, and none of those is resume. The one arrangement where commits do carry continuity is a repository whose commit messages hold the rationale and whose next session reads the log, which is git used as a progress file with no in-progress field. That depends on a commit discipline most repositories do not have, and it is not what carries work between sessions in mine.
+
+### Subagents isolate the work, not the state
+
+The lecture opens with a session that exhausts its window mid-task, and its fix is four cross-session tools. Those address the next session, not the one that just ran out. The other half of the problem is spending less of the window as you go, and Anthropic's context-engineering article puts subagents here, alongside compaction and note-taking as the techniques for work that outlives a single window.
+
+Each subagent runs in its own context window with its own system prompt, tool access, and permissions, and it never sees the conversation. Claude composes a delegation message summarizing the task, and the subagent works from that. What comes back is the report rather than the transcript. Anthropic's figure for the pattern is a subagent "using tens of thousands of tokens or more, but return[ing] only a condensed, distilled summary of its work," often 1,000 to 2,000 tokens. The Claude Code docs describe the same purpose from the other direction: use one when a side task "would flood your main conversation with search results, logs, or file contents you won't reference again."
+
+HumanLayer makes the stronger version of the claim, calling sub-agents a "context firewall" and "the key to maintaining coherency across many sessions." The firewall framing is worth taking literally: none of the intermediate tool calls, results, or messages reach the parent. Their argument is not only that this saves budget. It is that attention degrades with length, and they cite Chroma's research for it, that performance falls as context grows even on simple tasks and that distractor effects compound. On that reading a larger window buys less than it looks like, since "a bigger context window doesn't make the model better at finding the needle" so much as it makes the haystack bigger, and the fix is isolation rather than capacity. That reframes the lecture's own opening, because HumanLayer puts context isolation rather than persistence files behind continuity across sessions.
+
+Two practical notes from the same section. What gets delegated is a task rather than a persona, and they say the role-based version failed for them outright: the "frontend engineer" sub-agent did not work. And the return should be condensed with `filepath:line` or URL citations, so the parent can follow up without re-reading what the subagent already read.
+
+Partial is the right word for the fix, because isolation is not absolute in either direction. The subagent still loads the same `CLAUDE.md` hierarchy the parent session loads, though the built-in Explore and Plan agents skip it and a definition can set `omitClaudeMd`, and it still reads a fresh git status snapshot. Main-conversation auto memory and output style do not carry over. Its requests count against the same usage limits, so the cost moves rather than disappearing. The subagent descriptions themselves also sit in the parent's context, and Claude Code warns once the combined total passes 15,000 tokens.
+
+Fork is the same feature with the input isolation removed, which is a useful way to see what the isolation was for. A fork inherits the conversation, the system prompt, the tools, and the prompt cache, so it starts with everything the parent has and only its own tool calls stay out of the parent's window. That trades isolating the input for not having to re-explain the situation. A non-fork subagent gets its system prompt from its definition file and, if the `model` field says so, a different model, whose context window sizes the subagent rather than the parent's.
+
+The distinction from the lecture's four tools is that `PROGRESS.md` and its neighbors move state across a session boundary, while a subagent moves work across a boundary and leaves the state where it was. The lecture does cover compaction, though it treats it as a summary to be written at the boundary rather than a budget to be spent before one, and rewind, which belongs on the same side of the line as subagents, never appears at all.
 
 ## What the lecture gets wrong
 
@@ -281,7 +314,7 @@ The lecture's three, with my take:
 
 One I'd add:
 
-4. **Measure the load step, not the write step.** The lecture's whole argument is that reading state at session start is cheaper than re-deriving it. That's a claim about the *consumer*. Take one task, run the session-start hook from [The clock-in ritual is an instruction, not a hook](#the-clock-in-ritual-is-an-instruction-not-a-hook), and compare turns-to-first-useful-action against a session that has the same files available but no hook. The difference is the value of the mechanism as opposed to the value of the artifact, and it's the comparison the lecture never makes.
+4. **Measure the load step, not the write step.** The lecture's whole argument is that reading state at session start is cheaper than re-deriving it. That's a claim about the *consumer*. Take one task, run the session-start hook from [The clock-in and clock-out routines](#the-clock-in-and-clock-out-routines), and compare turns-to-first-useful-action against a session that has the same files available but no hook. The difference is the value of the mechanism as opposed to the value of the artifact, and it's the comparison the lecture never makes.
 
 ## References
 
@@ -293,6 +326,7 @@ One I'd add:
 - [Anthropic: Effective Harnesses for Long-Running Agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) - published 2025-11-26; the initializer agent, `init.sh`, the 200+ feature JSON list, and the two failure modes the lecture drops
 - [Anthropic: Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) - the long-horizon techniques section, including compaction and structured note-taking, which is the general form of what the lecture's progress files implement
 - [OpenAI: Harness Engineering](https://openai.com/index/harness-engineering/) - the repository as an "operational record"
+- [HumanLayer: Skill Issue: Harness Engineering for Coding Agents](https://www.humanlayer.dev/blog/skill-issue-harness-engineering-for-coding-agents) - sub-agents as a "context firewall" and hooks as control flow, including the quiet-on-success property and the back-pressure argument. Also the source for the contention that larger windows do not fix attention
 - [LangChain: Improving Deep Agents](https://www.langchain.com/blog/improving-deep-agents-with-harness-engineering) - Terminal Bench 2.0, 89 tasks, gpt-5.2-codex held fixed, 52.8% to 66.5%, across prompt, tool, and middleware changes together rather than progress files alone
 
 ### Claude Code mechanics
@@ -304,6 +338,7 @@ One I'd add:
 - [Explore the context window](https://code.claude.com/docs/en/context-window) - what loads at startup and what each file read costs
 - [Model configuration](https://code.claude.com/docs/en/model-config) - default auto-compact thresholds per model and how to set the window
 - [Hooks reference](https://code.claude.com/docs/en/hooks) - the lifecycle events named above
+- [Subagents](https://code.claude.com/docs/en/sub-agents) - separate context windows, what returns to the parent, resume via `SendMessage`, the fork comparison, and the caveats on what still loads
 
 ### Tooling mentioned
 
