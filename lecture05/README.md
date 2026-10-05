@@ -34,7 +34,7 @@ Notes from [lecture 5](https://walkinglabs.github.io/learn-harness-engineering/e
 
 A session runs for thirty minutes, gets a feature mostly done, and hits the context wall. The next session has no idea which decisions were made, why option B beat option A, which files were already modified, or what state the tests are in. It spends fifteen minutes re-exploring, and it may take a different approach than the one the previous session settled on.
 
-Three claims carry the argument. Context is finite and will stay finite, since window growth doesn't fix it: agent context accumulates faster than the window expands, and it accumulates from codebase understanding, decision history, tool output, and conversation all at once.
+Context is finite and will stay finite, since window growth doesn't fix it. Agent context accumulates faster than the window expands, and it accumulates from codebase understanding, decision history, tool output, and conversation all at once.
 
 What gets lost at a session boundary is the reason rather than the artifact. Intermediate reasoning holds the *why* and the final output holds the *what*, so a session that reads only the code can "optimize" away a deliberate decision without knowing it was deliberate.
 
@@ -58,7 +58,7 @@ The problem statement is the strongest in the sequence so far, and the least con
 
 The prescriptions are vaguer. [Lecture 02](../lecture02/) named state as one of five subsystems and gave it a file. [Lecture 03](../lecture03/) gave the repository ACID properties. This lecture is the first to spend a whole page on state across sessions, and it arrives at `PROGRESS.md` and `DECISIONS.md`, which is roughly where lecture 02 already was. What it adds is the reason state matters (the *why* is what dies, not the *what*), the failure modes, and the model-dependence.
 
-The model-dependence is the genuinely new contribution here, and it's the one line I'd keep if I kept one. A harness tuned for Sonnet 4.5 shipped resets that Opus 4.5 made unnecessary, which means the harness carries an expiry date set by the model underneath it. [Lecture 04](../lecture04/) makes the same lifecycle argument about instruction rules: a component can be correct when it is written and unnecessary a year later, and nothing in the file says which one it has become.
+The model-dependence is the genuinely new contribution here, and it's the one line I'd keep if I kept one. A harness tuned for Sonnet 4.5 shipped resets that Opus 4.5 made unnecessary, so the harness carries an expiry date set by the model underneath it. [Lecture 04](../lecture04/) makes the same lifecycle argument about instruction rules: a component can be correct when it is written and unnecessary a year later, and nothing in the file says which one it has become.
 
 Where I'd push back is on what the lecture treats as given. Three of its four tools are things the agent has to remember to use, and lecture 04 spent a whole section establishing that a rule nothing enforces is a rule that gets skipped. The lecture hands you the clock-in checklist and no mechanism. Meanwhile the harness ships four things aimed at exactly this problem (`SessionStart` hooks, steerable compaction, `/rewind`, and session checkpoints independent of git) and the lecture names none of them. That is the gap in [What the lecture leaves out](#what-the-lecture-leaves-out).
 
@@ -101,11 +101,11 @@ The lecture's own framing already points at this. "Treat the agent like an engin
 
 The lecture's treatment of compaction is a binary: compaction or reset. In Claude Code it is a dial with three settings and a steering wheel.
 
-`/compact` takes instructions, so `/compact focus on the auth bug fix` tells the summarizer what to keep. This is the direct answer to the lecture's central complaint that compaction loses the *why*. The lecture diagnoses the loss and never mentions that the tool accepts a prompt about it. The instruction can also be standing: a `CLAUDE.md` section named `# Compact instructions` is read at every compaction, so the policy doesn't have to be retyped each time.
+`/compact` takes instructions, so `/compact focus on the auth bug fix` tells the summarizer what to keep. This is the direct answer to the lecture's central complaint that compaction loses the *why*. The lecture diagnoses the loss. It never mentions that the tool accepts a prompt about it. The instruction can also be standing: a `CLAUDE.md` section named `# Compact instructions` is read at every compaction, so the policy doesn't have to be retyped each time.
 
 An edit to the root `CLAUDE.md` doesn't reach the running session at all, though. The docs say new content loads on the next `/clear`, `/compact`, or restart, which means compact instructions are something you write before you need them.
 
-Where the automatic pass fires is configurable, through `/autocompact 500k`, the `autoCompactWindow` setting, `--autocompact`, or `CLAUDE_CODE_AUTO_COMPACT_WINDOW`. Defaults run from 200K (Sonnet 4.6 and Opus 4.6 without extended context) up to about 967K on native 1M models. That matters because it turns the lecture's "60% of the window" rule into something you set rather than something you guess. You pick the fill level at which a compaction happens, and you run `/compact` yourself at natural breaks before the automatic one fires mid-task.
+Where the automatic pass fires is configurable, through `/autocompact 500k`, the `autoCompactWindow` setting, `--autocompact`, or `CLAUDE_CODE_AUTO_COMPACT_WINDOW`. Defaults run from 200K (Sonnet 4.6 and Opus 4.6 without extended context) up to about 967K on native 1M models. That matters, because it turns the lecture's 60% rule into a setting. Pick the fill level at which a compaction happens, then run `/compact` yourself at natural breaks rather than letting the automatic pass fire mid-task.
 
 `/compact` is not free either, and this is the part the lecture's framing misses entirely. Compacting means sending a request that reads the conversation it is summarizing. While the prompt cache is warm that costs a fraction of what the context size suggests, because it reads your prefix from cache. After a break longer than the cache lifetime it reprocesses the whole history as uncached input, which is why `/compact` is most expensive exactly when you resume an old session. `/clear` costs nothing. So the trade between compaction and reset covers more than which one preserves more. It also includes what each costs at the moment you reach for it, and that cost depends on cache state rather than on context size.
 
@@ -115,7 +115,7 @@ The lecture describes a session that took a wrong turn and had to be abandoned. 
 
 `/rewind`, or double-tap `Esc` on an empty prompt, opens a menu of every prompt in the session with six actions: restore code and conversation, restore conversation only, restore code only, summarize from here, summarize up to here, or never mind. Summarize keeps you in the same session and compresses like a targeted `/compact`, and both summarize options accept instructions typed into an **add context (optional)** row.
 
-Two properties make this better than the lecture's options for the case it describes. It's cheap where compaction isn't, because rewinding truncates the conversation back to a prefix that was already cached, so the next request hits the earlier cache entry rather than building a new prefix the way compaction does. For "I went down a path I want to abandon," rewind is both the more precise tool and the cheaper one. It also keeps the original: the doc's note is that summarizing doesn't change files on disk and the original messages stay in the transcript, so details are still referenceable. `/branch`, or `claude --continue --fork-session`, is the escape hatch when you want to try a different approach while keeping the current session intact.
+For "I went down a path I want to abandon," rewind is both the more precise tool and the cheaper one: it truncates the conversation back to a prefix that was already cached, so the next request hits the earlier cache entry rather than building a new prefix the way compaction does. It also keeps the original: the doc's note is that summarizing doesn't change files on disk and the original messages stay in the transcript, so details are still referenceable. `/branch`, or `claude --continue --fork-session`, is the escape hatch when you want to try a different approach while keeping the current session intact.
 
 The limitations are the reason this is a complement to git checkpoints rather than a replacement, and they are all worth knowing before relying on it:
 
@@ -150,19 +150,19 @@ The lecture's instinct, to commit after each atomic unit, is right, and the two 
 
 Core Concepts says a good harness can compress rebuild cost from 15 minutes to 3, and Key Takeaways repeats it as a target. Both are stated as properties of a good harness, with no measurement, no unit, and no source behind them. Rebuild cost in what: wall clock, tool calls, context tokens, turns? A 15-to-3 improvement means something different in each.
 
-The lecture then assigns exercise 1, which is to measure exactly this number across at least three sessions with and without progress files. So it states as established the quantity it also assigns as the experiment that would establish it. That is the shape [lecture 04](../lecture04/) took with its exercise 3, where the only instrument that could test the lecture's core mechanism was left as homework.
+The lecture then assigns exercise 1, which is to measure exactly this number across at least three sessions with and without progress files. So it states as established the quantity it also assigns as the experiment that would establish it. [Lecture 04](../lecture04/) took the same shape with its exercise 3, where the only instrument that could test the lecture's core mechanism was left as homework.
 
 The difference is that this one is runnable and worth running, and the metric is easy to under-specify in the wrong direction. If you measure wall clock, you are measuring your own typing. If you measure turns-to-first-correct-edit, you are measuring something closer to what the lecture means, and instrumentation for it already exists: [planning-with-files](#task-continuity-planning-with-files) reports 13.3 re-orientation turns against 5.0 in its own benchmark, which is the shape the lecture's 15-to-3 should have taken.
 
 ### The 60% threshold has nothing to measure it against
 
-"if a task needs more than 60% of the window, start preparing the handoff" fails on three counts.
+"if a task needs more than 60% of the window, start preparing the handoff" doesn't survive being read as a rule.
 
-The first is that you can't know it in advance. The fraction of a window a task will consume is not visible before the task, and the estimate is available only after the fact from `/context` or the status line, which is too late to be a decision rule.
+You can't know it in advance. The fraction of a window a task will consume is not visible before the task, and the estimate is available only after the fact from `/context` or the status line, which is too late to decide anything.
 
-The second is that the window isn't the right denominator. Context is already partly consumed at turn one, by the system prompt, `CLAUDE.md`, auto memory, MCP tool listings, and git status. Sixty percent of the *remaining* window and sixty percent of the *total* window are different numbers, and the lecture doesn't say which it means.
+The window also isn't the right denominator. Context is already partly consumed at turn one, by the system prompt, `CLAUDE.md`, auto memory, MCP tool listings, and git status. Sixty percent of the *remaining* window and sixty percent of the *total* window are different numbers, and the lecture doesn't say which it means.
 
-The third is that a setting supersedes it. Auto-compaction fires at a fill level you configure, so the actionable version of "prepare a handoff at 60%" is to set `/autocompact` somewhere below the default and run `/compact` with instructions at natural breaks before the automatic pass fires mid-task. That is a lever rather than a prediction.
+Auto-compaction already supersedes it. Compaction fires at a fill level you configure, so the actionable version of "prepare a handoff at 60%" is to set `/autocompact` somewhere below the default and run `/compact` with instructions at natural breaks. That is a lever rather than a prediction.
 
 The lecture's own header disclaims its numbers as "adjustable teaching defaults, not experimentally established thresholds," which covers this. But the disclaimer is at the top of the page and the 60% is in the middle of the practical section, where it reads as a rule.
 
@@ -172,17 +172,17 @@ The lecture says compaction doesn't eliminate anxiety because "the agent knows c
 
 Those are different claims. The source's reason is structural, in that the summarized conversation is still a long conversation, so whatever produced the anxiety is still there. The lecture's reason is introspective, with the model holding some representation of its own former context size and reacting to it. Nobody has demonstrated that second mechanism, and it's doing real work in the argument, because it's why the lecture treats reset as the more reliable option. The verifiable version of the same conclusion doesn't need it: resets work because they're complete, not because they're forgetful.
 
-The model-specific finding does check out exactly. The lecture's Sonnet 4.5 and Opus 4.5 split matches the source, and the source's own sentence is stronger than the lecture's: Opus 4.5 "largely removed that behavior on its own, so I was able to drop context resets from this harness entirely." A whole harness component went away because the model underneath it changed. That's the sentence the lecture should be quoting.
+The model-specific finding does check out exactly. The lecture's Sonnet 4.5 and Opus 4.5 split matches the source, and the source's own sentence is stronger than the lecture's: Opus 4.5 "largely removed that behavior on its own, so I was able to drop context resets from this harness entirely." A whole harness component went away because the model underneath it changed, which is the sentence the lecture should be quoting.
 
 ### The source's two failure modes are the interesting part, and they are dropped
 
 The lecture's Anthropic section says subsequent sessions "read progress and git history, worked incrementally on features, verified behavior, and left updates for the next session." That's the success path.
 
-The source also reports what went wrong, and the two failures are more useful than the description of what went right. The first is that the agent tried to do too much at once, sometimes exhausting context mid-implementation. That's the case a progress file does not prevent, because the failure happens inside one session, and it's what lecture 07 is about.
+The source also reports what went wrong, and the failures are more use than the description of what went right. The agent tried to do too much at once, sometimes exhausting context mid-implementation. That's the case a progress file does not prevent, because the failure happens inside one session, and it's what lecture 07 is about.
 
-The second is worse. Later agents looked around, saw that progress had been made, and declared the job done. A progress file makes that *more* likely rather than less, because `PROGRESS.md` is evidence that work happened, and an agent reading it at session start has just been handed a reason to believe the remaining work is smaller than it is. The lecture recommends the artifact without mentioning that it is also a source of false confidence.
+The other failure is worse. Later agents looked around, saw that progress had been made, and declared the job done. A progress file makes that *more* likely rather than less, because `PROGRESS.md` is evidence that work happened, and an agent reading it at session start has just been handed a reason to believe the remaining work is smaller than it is. The lecture recommends the artifact without mentioning that it is also a source of false confidence.
 
-The source addresses it with a constraint the lecture omits. The feature list is JSON specifically because models are "less likely to inappropriately change or overwrite JSON files compared to Markdown files," and coding agents may only flip the `passes` field, with explicit wording that removing or editing tests is unacceptable. So the answer to the artifact's own failure mode is to make the artifact un-editable and to gate its completion field on verification evidence. That is a far more specific design than "write a progress file," and it's the part that generalizes.
+The source addresses it with a constraint the lecture omits. The feature list is JSON specifically because models are "less likely to inappropriately change or overwrite JSON files compared to Markdown files," and coding agents may only flip the `passes` field, with explicit wording that removing or editing tests is unacceptable. So the answer to the artifact's own failure mode is to make the artifact un-editable and to gate its completion field on verification evidence, a far more specific design than "write a progress file." That's also the part that generalizes.
 
 ## Two layers, not one
 
@@ -206,15 +206,15 @@ Conflating them is what makes the lecture's file list feel heavier than it is. T
 | `Stop` | an opt-in completion gate that can hold the agent's stop until the plan reports complete |
 | `PreCompact` | flushes in-context progress to `progress.md` before compaction runs |
 
-Three things about this are worth stealing regardless of whether you install it.
+Some of this is worth stealing regardless of whether you install it.
 
 The per-turn re-injection is a different mechanism from persistence. Writing state to disk survives a wipe; re-reading it every turn means the goals stay in the attention window as the conversation grows, which is the *lost in the middle* problem from [lecture 04](../lecture04/) applied to the plan rather than to the instruction file. The lecture gets you the first half and stops.
 
 The completion gate is the answer to the source's second failure mode. "The agent looked around and declared the job done" is exactly what a `Stop` hook that checks plan state can block. Comparing the plan to reality is lecture 09's territory, and this is the smallest version of it.
 
-The numbers are the part to be skeptical of. The repo advertises a 96.7% assertion pass rate, 3-of-3 blind A/B wins, and 13.3 turns reduced to 5.0. These are the project's own evaluations, and `docs/evals.md` is unusually forthcoming about that: tests 1 through 3 ran against v2.22.0 with 5 `with_skill` and 5 `without_skill` subagents, the skill is self-classified as an "encoded preference skill" whose assertions test workflow fidelity rather than planning ability, and the 13.3-versus-5.0 figure is labeled an author-run internal benchmark with disclosed method and limits. That's a better disclosure than most, and it's still not a measured benefit of progress files over any alternative. The 30 assertions are mostly file-existence and section-header checks ("task_plan.md created in project directory," "## Errors Encountered section"), which measure whether the skill was followed rather than whether the task went better.
+The numbers are the part to be skeptical of. The repo advertises a 96.7% assertion pass rate, 3-of-3 blind A/B wins, and 13.3 turns reduced to 5.0. These are the project's own evaluations, and `docs/evals.md` is unusually forthcoming about that: tests 1 through 3 ran against v2.22.0 with 5 `with_skill` and 5 `without_skill` subagents, the skill is self-classified as an "encoded preference skill" whose assertions test workflow fidelity rather than planning ability, and the 13.3-versus-5.0 figure is labeled an author-run internal benchmark with disclosed method and limits. That disclosure is better than most, and it's still not a measured benefit of progress files over any alternative. The 30 assertions are mostly file-existence and section-header checks ("task_plan.md created in project directory," "## Errors Encountered section"), which measure whether the skill was followed rather than whether the task went better.
 
-I'd take the mechanism and treat the numbers as a hypothesis. That's the same standard I applied to the lecture in [lecture 04](../lecture04/), and it would be inconsistent to apply it only to the free material.
+I'd take the mechanism and treat the numbers as a hypothesis. [Lecture 04](../lecture04/) applied the same standard to the lecture itself, and it would be inconsistent to apply it only to the free material.
 
 ### Knowledge continuity: OpenViking
 
@@ -237,9 +237,9 @@ The plugin's hook set is the same shape as planning-with-files and covers more b
 | `SessionEnd` | capture at exit |
 | `SubagentStart` / `SubagentStop` | the same for subagents |
 
-Two things follow from shipping this as hooks rather than as a convention. The first is that the lecture's clock-out step becomes automatic, with no discipline required to write the state down, because capture runs at `Stop`, `PreCompact`, and `SessionEnd` whether or not the agent remembers. The lecture's Tool 4 asks the agent to update `PROGRESS.md` before the session ends. A `SessionEnd` hook doesn't ask.
+Shipping this as hooks rather than as a convention makes the lecture's clock-out step automatic, with no discipline required to write the state down, because capture runs at `Stop`, `PreCompact`, and `SessionEnd` whether or not the agent remembers. The lecture's Tool 4 asks the agent to update `PROGRESS.md` before the session ends. A `SessionEnd` hook doesn't ask.
 
-The second is the `compact` matcher on `SessionStart`, which is the piece the lecture is missing entirely. On compaction, the plugin injects its archive overview as a canonical long-term record alongside Claude Code's own compact summary. That is a second, independently-maintained summary of the same session entering context at the same moment, which is a direct answer to "compaction loses the why," and it doesn't rely on the compaction prompt getting it right.
+The `compact` matcher on `SessionStart` is the piece the lecture is missing entirely. On compaction, the plugin injects its archive overview as a canonical long-term record alongside Claude Code's own compact summary. That is a second, independently-maintained summary of the same session entering context at the same moment, which is a direct answer to "compaction loses the why," and it doesn't rely on the compaction prompt getting it right.
 
 The failure mode to watch here is the one the lecture would flag: capture that runs automatically produces more than you need, and "what happened" crowds out "what is worth preserving." The three-tier summary layer is the defense, since retrieval surfaces an abstract before it surfaces content, but a directory tree of low-value memories is still a directory tree.
 
@@ -265,11 +265,11 @@ Move the load step into `SessionStart` rather than into `AGENTS.md`. The content
 
 Record the command rather than the result. The lecture's progress file carries "Test status: 42/43 passing," which is a claim from a previous session, and per [lecture 04](../lecture04/) a persisted claim is a hint rather than a source of truth. What's reproducible is the command, `make check`. Put the command in the entry file ([lecture 02](../lecture02/) already does this), put the last run's output nowhere, and re-run it. The lecture's verification gap is real, but the fix is a cheap idempotent check rather than a longer record.
 
-Write the failed approaches down. The lecture's `PROGRESS.md` example has a "Known Issues" section and no "What I tried that didn't work." That's the section preventing duplicated work, and it's also the one most likely to get omitted, since a failed attempt feels like it doesn't belong in a status file. claude-mem's handoff template calls it the most important section, and I think that's right. Lecture 03's knowledge decay has a mirror here: a re-attempted dead end costs the same context it cost the first time, and there is no record that it was already spent.
+Write the failed approaches down. The lecture's `PROGRESS.md` example has a "Known Issues" section and no "What I tried that didn't work." The section preventing duplicated work is also the one most likely to get omitted, since a failed attempt feels like it doesn't belong in a status file. claude-mem's handoff template calls it the most important section, and I think that's right. Lecture 03's knowledge decay has a mirror here: a re-attempted dead end costs the same context it cost the first time, and there is no record that it was already spent.
 
 Set the compaction point deliberately. Pick a fill level with `/autocompact`, run `/compact` with instructions at natural breaks, and treat the automatic pass as a backstop rather than the plan. Prefer `/rewind` over `/compact` when the goal is to abandon a path rather than to continue it, since it's cheaper and it keeps the original.
 
-Give every artifact a deletion rule at the moment you create it. This is [lecture 04](../lecture04/)'s expiry discipline applied to session state. `PROGRESS.md` dies when the task closes. The plan file dies when the plan is done. The handoff dies when the next session starts. Anything without a death condition is a file that will be read by a session that shouldn't trust it.
+Give every artifact a deletion rule at the moment you create it. This is [lecture 04](../lecture04/)'s expiry discipline applied to session state: `PROGRESS.md` dies when the task closes, the plan file when the plan is done, and the handoff when the next session starts. Anything without a death condition is a file that will be read by a session that shouldn't trust it.
 
 ## Exercises
 
