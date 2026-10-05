@@ -171,7 +171,7 @@ Three loading facts the lecture's advice depends on and never states: import cha
 
 `.claude/rules/` is the same trap one layer over. A rule file with no `paths` frontmatter loads at launch with the same priority as `.claude/CLAUDE.md`, so moving a paragraph out of the entry file into `.claude/rules/foo.md` and stopping there saves nothing. Only rules carrying a `paths` glob are conditional, and they load when the agent reads a matching file, not on any other trigger. Imports that resolve outside the working directory sit behind an approval dialog, and rules reached through a symlink to such a path need that approval too - after which only the ones without `paths` load, so adding a glob to a shared symlinked rule is what stops it loading.
 
-`.claude/rules/frontmatter.md` is what the working version looks like:
+Here is what the working version looks like:
 
 ````markdown
 ---
