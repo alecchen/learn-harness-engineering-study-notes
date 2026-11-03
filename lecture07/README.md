@@ -9,8 +9,8 @@ Notes from [lecture 7](https://walkinglabs.github.io/learn-harness-engineering/e
 
 The same argument is available as a slide deck, in two languages:
 
-- [Lecture 07 deck, English](slides/) (57 pages, presenter notes included)
-- [Lecture 07 deck, Traditional Chinese](slides/s/lecture-07-zh-tw/) (same pages, English headings, body text translated)
+- [Lecture 07 deck, bilingual](slides/) (57 pages, English headings with Traditional Chinese body text, presenter notes included)
+- [Lecture 07 deck, Traditional Chinese only](slides/s/lecture-07-zh-tw/) (same pages, English headings, English body text replaced)
 
 ## Contents
 
