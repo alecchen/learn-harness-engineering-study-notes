@@ -7,7 +7,10 @@ permalink: /lecture07/
 
 Notes from [lecture 7](https://walkinglabs.github.io/learn-harness-engineering/en/lectures/lecture-07-why-agents-overreach-and-under-finish/) (slug: *why-agents-overreach-and-under-finish*).
 
-The same argument is available as a deck: [`slides/`](slides/) (57 pages, presenter notes included).
+The same argument is available as a slide deck, in two languages:
+
+- [Lecture 07 deck, English](slides/) (57 pages, presenter notes included)
+- [Lecture 07 deck, Traditional Chinese](slides/s/lecture-07-zh-tw/) (same pages, English headings, body text translated)
 
 ## Contents
 
