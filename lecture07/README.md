@@ -7,7 +7,7 @@ permalink: /lecture07/
 
 Notes from [lecture 7](https://walkinglabs.github.io/learn-harness-engineering/en/lectures/lecture-07-why-agents-overreach-and-under-finish/) (slug: *why-agents-overreach-and-under-finish*).
 
-The same argument is available as a deck: [`slides/`](slides/) (17 pages, presenter notes included).
+The same argument is available as a deck: [`slides/`](slides/) (57 pages, presenter notes included).
 
 ## Contents
 
@@ -19,10 +19,12 @@ The same argument is available as a deck: [`slides/`](slides/) (17 pages, presen
 - [What the lecture gets wrong](#what-the-lecture-gets-wrong)
   - [A quotation the source does not contain](#a-quotation-the-source-does-not-contain)
   - [The attention model is a metaphor presented as math](#the-attention-model-is-a-metaphor-presented-as-math)
+  - [The central noun is never defined](#the-central-noun-is-never-defined)
   - [Little's Law says nothing about failure rates](#littles-law-says-nothing-about-failure-rates)
   - [The real-world case is a teaching example with the label removed](#the-real-world-case-is-a-teaching-example-with-the-label-removed)
   - [The completion evidence does not run](#the-completion-evidence-does-not-run)
   - [The scope tracker audits the agent's label, not its edits](#the-scope-tracker-audits-the-agents-label-not-its-edits)
+  - [The lecture prescribes no mechanism, and CI is the obvious one](#the-lecture-prescribes-no-mechanism-and-ci-is-the-obvious-one)
   - [Blocking activations below VCR 1.0 blocks the normal case](#blocking-activations-below-vcr-10-blocks-the-normal-case)
   - [The scope surface duplicates the feature list](#the-scope-surface-duplicates-the-feature-list)
 - [What I think](#what-i-think)
@@ -114,6 +116,8 @@ The gap is on the scope side. None of the five conditions mentions scope. A run 
 
 Layer boundaries are also unenforced. `npm run check` type-checks; nothing fails when a service imports from the renderer. For this harness, the fourth prescription, an automated rate monitor, measures the wrong thing. What would earn its keep is a dependency-direction test, and `src/services/*.test.ts` does not have one.
 
+Nothing in the strong harness runs on a clean machine either. The run recorded 15 passing tests and a clean build, and every one of those results is a claim the session made about itself: `claude-progress.md` and `feature_list.json` are both written by the agent that did the work, and a fresh clone would tell you nothing until someone ran the commands by hand.
+
 ## What the lecture gets wrong
 
 ### A quotation the source does not contain
@@ -126,9 +130,33 @@ This is the defect the rest of the page leans on, and it sits in quotation marks
 
 Attention is not a divisible stock. `C/k` assumes the budget splits evenly across `k` tasks, in proportion to their count. Real context use is lumpy. One task may need a 40-page file read and another a one-line lookup, and what fills the window is tool output and history, not how many tasks the agent thinks it is doing.
 
-`k` is not well defined either. Is a task a feature, a file edit, a tool call, a step in the plan? The lecture's own example counts six steps of one feature (model, route, mail service, bcrypt, error middleware, test directory) as the overreach, so `k` there is 6 inside a single feature. By its own definitions, the last step, reorganizing the test directory, is not a task at all. It is drift.
+`k` is not well defined either. The next section takes that apart; here it is enough to note that the lecture's own example counts six steps of one feature, so `k` is 6 inside a single feature, and the last of those steps is drift rather than a task.
 
 The window also isn't shared. `C` is a per-window quantity, and the lecture applies it to a harness it never describes in terms of windows: subagents, parallel work, and isolated contexts do not appear on the page. Each subagent gets its own window, so the claim that `k` tasks divide one `C` does not describe four subagents working four tasks. [Lecture 05](../lecture05/) reached this from the other direction, calling a subagent a context firewall and using one because the parent's window is not the only window there is.
+
+### The central noun is never defined
+
+The lecture builds everything on "task" and never says what one is. The page uses the word three ways, and the three do not agree.
+
+Operationally it means a feature. The work rule says "work on one feature at a time" and "only start the next feature." Overreach is defined as "5 features with 0 passing end-to-end." The mermaid diagram runs `Feature queue --> Pick exactly one task`, which equates the two. The case study counts 8 features and says the unconstrained run "activates 5 features simultaneously."
+
+Its own example counts smaller. The six-step run (model, route, mail service, bcrypt, error middleware, test directory) is offered as the overreach, so `k` there is 6 inside one feature. At feature granularity that is `k=1` and nothing is overreach. The attention argument only works if a task is smaller than a feature, which contradicts every sentence above.
+
+`scope-surface-example.md` uses a third size. It opens with `Task:` and names it as "add indexing to the Electron knowledge app," then breaks it into five children. There a task is a project, and the units are the children.
+
+The only definitional sentence is in the exercise, not the body: "break it into at least 5 atomic work units. For each unit, specify: (a) a single behavior description, (b) an executable verification command, (c) dependencies." That is the closest the page gets, and it is precise enough to use. One behavior, one command, explicit dependencies.
+
+Check the three readings against the prescriptions:
+
+| Reading | Fits | Breaks |
+|---|---|---|
+| A feature | the work rule, the VCR ratio, the case study, the queue diagram | the six-step example, where overreach happens inside one feature |
+| An issue or pull request | the exercise's atomic unit, which fits a PR almost exactly | the page never says branch, PR, or merge, and `scope-tracker.ts` has no diff and no files-per-task |
+| A job the user asked for | the attributed OpenAI line about "tasks without explicit scope controls" | that is exactly the granularity the lecture calls too broad |
+
+The reading that survives most of the page is one atomic work unit: one end-to-end verifiable behavior, which in a repository is one pull request. The lecture reaches it only through an exercise and then uses "task" to mean all three at different points.
+
+The cost is concrete. A `feature_list.json` entry has no defined size, so an agent can satisfy WIP=1 by adding three features to one entry, and the schema will not notice. The six-step example is exactly that failure, and the rule it violates cannot see it. The fix is one sentence in Core Concepts, matching the exercise, plus an explicit `unit` field or a stated per-entry cap in the schema so the limit has something to count.
 
 ### Little's Law says nothing about failure rates
 
@@ -177,8 +205,43 @@ Verification: curl -X POST /api/register -d '{"email":"test@example.com","passwo
 Typed into a shell, it fails before it can check anything.
 
 - `/api/register` has no host, so curl fails with `URL rejected: No host part in the URL`. Curl itself exits 3, but a pipeline reports the last command's status, and jq exits 0 on that empty input, so the whole check reports success. A check that cannot reach the server passes.
-- `jq .status == 201` is not a filter. jq parses `==` and `201` as two file arguments and fails with `Could not open file ==: No such file or directory`, exit code 2.
+- `jq .status == 201` is not a filter. jq parses `==` and `201` as two file arguments and fails with `Could not open file ==: No such file or directory`, exit code 2. With `-o /dev/null`, the body is gone as well and the filter has nothing to read.
 - Even written correctly, `jq '.status == 201'` prints `true` or `false` and exits 0 either way. It needs `-e`, or the exit status is success whatever the comparison says. A test that always passes is the failure this section exists to prevent, and the example commits it.
+
+Two repairs get proposed for this, and both keep the same flaw. One adds the host, the `Content-Type` header, and quotes to the filter, but keeps the bare `jq`. The other replaces the filter with `curl -s -o /dev/null -w "%{http_code}"`, which prints `200` or `500` and still exits 0. Measured here: against a server answering 500, the first exits 5 on a parse error, the second exits 0, and only a version that compares the code exits 1.
+
+The shortest form that actually gates:
+
+```
+code=$(curl -s -o /dev/null -w "%{http_code}" \
+  -X POST http://localhost:3000/api/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"123456"}')
+[ "$code" = "201" ]
+```
+
+If the body is JSON and you want to read a field from it rather than the status code, `jq -e` is the other gate. It exits 1 when the filter produces false or null, and it exits nonzero on input it cannot parse:
+
+```
+curl -s -X POST http://localhost:3000/api/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"123456"}' \
+  | jq -e '.status == 201'
+```
+
+The difference from the lecture's version is one flag, and it is the one that matters. Measured with `jq 1.7`:
+
+| Input | `jq '.status == 201'` | `jq -e '.status == 201'` |
+|---|---|---|
+| `{"status":201}` | prints `true`, exit 0 | exit 0 |
+| `{"status":200}` | prints `false`, exit **0** | exit **1** |
+| `{"ok":true}` (no `status`) | prints `false`, exit **0** | exit **1** |
+| `<html>error</html>` | parse error, exit 5 | parse error, exit 5 |
+| empty input | exit 0 | exit **4** |
+
+The last three rows are why `-e` is not optional. Without it the only failure it can report is a parse error, so an unreachable server, a wrong field name, and a failing assertion all read as success.
+
+Verified against a local server: 501 gives exit 1 and 201 gives exit 0 for the `code=$(...)` form.
 
 This is worse than a typo. The lecture argues that completion evidence must be executable, that `curl returns 201` counts and `the code looks fine` does not, and its own illustration of that idea does not execute. Anyone who copies it gets a gate that is permanently green, which makes the fourth prescription a rubber stamp.
 
@@ -197,6 +260,20 @@ Every self-reported scope check fails this way. An agent that overreaches has al
 The thing that would catch it is already in the tracker and unused: `change.file`. A path-to-module map, or a declared file surface for the active feature, would make drift a property of the diff rather than a claim about it. `git diff --name-only` against a declared surface is one line, and it hardens the check the sample data is built to pass.
 
 The lecture's own framing supports the stronger version. Overreach is defined as something observable, "5 features with 0 passing end-to-end," and drift is observable in files. The example settles for what the agent says about itself.
+
+### The lecture prescribes no mechanism, and CI is the obvious one
+
+Every prescription on the page is a convention the agent has to keep: a rule in the instruction file, a state file it has to update, a ratio it has to track. [Lecture 03](../lecture03/) made the point that a prompt rule asks rather than enforces, and [lecture 04](../lecture04/) built a whole section on rules nothing gates. Lecture 07 repeats the shape with the most checkable artifact in the course, and stops at the convention.
+
+The mechanism it is missing is a CI job, and this section's own examples show how much of the argument it would settle.
+
+The completion evidence defect and this one are the same defect twice. A `jq` gate that exits 0 on false is exactly what a CI job on a clean machine catches, because the job's status is the exit status and nothing else. The scope tracker has the same weakness from the other end: it reads a label the agent wrote. A CI job reading `git diff --name-only` against a declared surface reads the repository, and the agent has no say in what the diff contains.
+
+CI also answers the objection that ends the sequencing argument. The course's own reading of OpenAI is "corrections are cheap, and waiting is expensive," which argues against a gate that blocks the agent mid-task. A CI job that runs after a push does not block anything mid-task. The agent finishes, opens a pull request, and the runner on a clean machine decides whether the work holds. That is a gate, and it costs the agent no waiting, because the waiting happens after the session has ended.
+
+Pull requests are the same idea on the human side. A branch per task, review, then merge, is the workflow [lecture 03](../lecture03/) describes when the repository is the system of record. It makes the review boundary explicit rather than a judgement call, and it puts the diff in front of someone who is not the agent that produced it.
+
+The harness in this repo has none of that. `project01/strong-harness/` has no `.github/workflows`, no `.gitlab-ci.yml`, and no branch in its recorded history. The Definition of Done is agent-certified: the agent flips `feature_list.json` to `pass` and writes the evidence string itself. For a one-session exercise that is fine, and the lecture's whole claim is about runs that are not one session.
 
 ### Blocking activations below VCR 1.0 blocks the normal case
 
@@ -235,13 +312,14 @@ So the design I would carry forward is the one `AGENTS.md` already encodes, with
 - Make done checkable, and then check the check. The instinct here is better than in any earlier lecture, and the example does not run, which is the lesson: a gate nobody has watched fail is a gate nobody knows works. Run it against a known-bad state before trusting it.
 - Draw scope as an exclusion, per the fourth question in `next-task-template.md`, and give it a field. `feature_list.json` should carry `mustNotChange`, and the Definition of Done should require the diff to touch nothing outside it. That is the one thing the strong harness cannot see today, and it is the failure the lecture is actually about.
 - Enforce the boundary in code where the boundary is structural. The layer rules in `AGENTS.md` are mechanically checkable and nothing checks them. A dependency-direction test in the vitest suite catches more overreach than any counter, because it fails on the edit rather than on a self-report about the edit.
+- Move the last check off the agent. A GitHub Actions or GitLab CI job that runs `npm ci`, `npm run check`, `npm test`, and the dependency-direction test on a clean runner turns "done" from something the session wrote about itself into something a machine observed. Run it on pull requests, keep the agent on a branch per task, and let merge be the completion gate. That is the one mechanism the lecture never mentions, and it is the one that satisfies its own argument against blocking the agent mid-task, because the waiting happens after the session ends rather than inside it.
 
 One thing I would keep from the lecture as written: overreach and under-finish do feed each other, and the paragraph making that point is the best-written part of the page. Half-finished work is what makes the next session expensive. The harness worth building is the one where a session cannot end in that state, not the one where a session is forbidden to start more than one thing. What "done" means is the property that matters. How work is counted matters less, and the count is the part an agent is least accountable for.
 
 ## References
 
 - [Lecture 07: the course page](https://walkinglabs.github.io/learn-harness-engineering/en/lectures/lecture-07-why-agents-overreach-and-under-finish/)
-- [Lecture 07: code examples](https://github.com/walkinglabs/learn-harness-engineering/tree/main/docs/en/lectures/lecture-07-why-agents-overreach-and-under-finish/code) - `next-task-template.md` (four questions, including what must not change), `scope-surface-example.md` (one task, bad shape vs better shape), and `scope-tracker.ts`, which reads a self-reported `featureId`
+- [Lecture 07: code examples](https://github.com/walkinglabs/learn-harness-engineering/tree/main/docs/en/lectures/lecture-07-why-agents-overreach-and-under-finish/code) - `next-task-template.md` (four questions, including what must not change), `scope-surface-example.md` (one task, bad shape vs better shape), and `scope-tracker.ts`, which reads a self-reported `featureId`. `scope-surface-example.md` is also where the word "task" means a project rather than a feature
 - [Anthropic: Effective Harnesses for Long-Running Agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) - published 2025-11-26; "do too much at once" and "one feature at a time," which are not the phrases the lecture quotes; the second failure mode is an agent declaring the job done after looking around
 - [OpenAI: Harness Engineering](https://openai.com/index/harness-engineering/) - depth-first decomposition and "corrections are cheap, and waiting is expensive" against blocking gates; contains no occurrence of *scope* or any completion rate
 - [Kanban Guide](https://kanbanguides.org/) - WIP limits as caps on items in a column, which is not a ratio that must reach 1
@@ -253,4 +331,6 @@ One thing I would keep from the lecture as written: overreach and under-finish d
 - [9fb48af](https://github.com/walkinglabs/learn-harness-engineering/commit/9fb48af904acdf3d56171e5479e2e1101b95d173) - the evidence audit that renamed this case to `Illustrative Example` and added the teaching-illustration blockquote
 - [95c42ed](https://github.com/walkinglabs/learn-harness-engineering/commit/95c42ed) - "Revert course evidence audit across all 15 languages," 2026-10-20, which restored the original headings and removed the caveats
 - [PR #92](https://github.com/walkinglabs/learn-harness-engineering/pull/92) - merged 2026-10-22; removed unsourced figures in eleven lectures but left this section's heading and percentages in place
+- [GitHub Actions: workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax) - the `on: pull_request` trigger and job exit-status semantics a completion gate would use
+- [GitLab CI/CD pipeline configuration](https://docs.gitlab.com/ci/yaml/) - the same shapes for `merge_request` pipelines and `rules:`
 - Related notes: [lecture01](../lecture01/), [lecture02](../lecture02/), [lecture03](../lecture03/), [lecture04](../lecture04/), [lecture05](../lecture05/), [lecture06](../lecture06/)
