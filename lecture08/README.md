@@ -19,6 +19,7 @@ Notes from [lecture 8](https://walkinglabs.github.io/learn-harness-engineering/e
   - [The Building Effective Agents citation is fabricated in its strongest form](#the-building-effective-agents-citation-is-fabricated-in-its-strongest-form)
   - [The four dependents are the lecture's model attributed to a consensus](#the-four-dependents-are-the-lectures-model-attributed-to-a-consensus)
   - [Pass-state gating is not what the cited source does](#pass-state-gating-is-not-what-the-cited-source-does)
+  - [The worked example cannot demonstrate its own definition](#the-worked-example-cannot-demonstrate-its-own-definition)
   - [The harness that gates is named and never built](#the-harness-that-gates-is-named-and-never-built)
   - [The state machine has four states and no state field](#the-state-machine-has-four-states-and-no-state-field)
   - [Irreversible passing has no reopen path](#irreversible-passing-has-no-reopen-path)
@@ -196,6 +197,32 @@ The Anthropic article describes the opposite arrangement in its own table. Codin
 
 That is a real design difference, and the lecture can prefer its version. What it cannot do is cite the article for it, since the citation is the only evidence on the page that the stronger version works.
 
+### The worked example cannot demonstrate its own definition
+
+The lecture's definition is that a primitive "can't be bypassed," like a database trigger that "no SQL can skip." The artifact it offers to illustrate that is a text file in the repository, and an agent with a `Write` tool can edit it in a single call.
+
+Every component the lecture ships confirms the gap rather than closing it:
+
+| Shipped | What it does | Can the agent bypass it |
+|---|---|---|
+| `feature_list.json` | holds the state | yes, edit it |
+| `feature-list-validator.ts` | reads and flags | yes, and it exits 0 anyway |
+| `pass-gate-policy.md` | states four conditions | yes, it is prose |
+| step 3 in CLAUDE.md | asks the agent not to flip states | yes, it is a request |
+| scheduler, verifier, handoff reporter | not shipped at all | nothing to bypass |
+
+The validator reads and never writes, as [the code section](#what-the-code-examples-show) shows with its runs. The rule in step 3 is written the way a request is written. So the claim and the demonstration never meet. One is about a process that cannot be skipped, the other is a file the agent owns.
+
+What makes this a bad teaching example rather than one weak artifact:
+
+- The trigger analogy sets an expectation the file cannot meet. A reader who accepts it has no reason to keep looking for the thing that would meet it.
+- The mechanism that would meet it, a gate outside the session, appears nowhere on the page. Zero occurrences of `CI`, `pipeline`, `pull request`, `merge`, or `hook` in the lecture source, counted at word boundaries on 2026-11-17.
+- The next section builds a four-state machine with harness-owned transitions on top of that file. A more elaborate schema looks more enforced, and a reader is less likely to check whether it is.
+
+A primitive the constrained party can rewrite is a convention. Useful category, wrong one for this lecture.
+
+The example that would have carried the definition is a verifier that owns the file. The agent submits a request, the program runs the check, the program writes `passing` and the evidence, and the agent has no write permission on the file. Nothing in the course resembles that. One tracking setup in the wild gets close, with `task` wrappers the agent is told to call instead of editing the JSON, but the wrappers are still a rule in a document and the file is still writable.
+
 ### The harness that gates is named and never built
 
 The claim is "State transitions are controlled by the harness. The agent can't change states on its own."
@@ -208,24 +235,24 @@ For that sentence to mean anything, "harness" has to be a process that is not th
 | A tool or hook the runtime fires: `PreToolUse` on the state file, a `Stop` hook running the check | Code outside the model's reasoning | Yes, with write access to the hook config or a permission bypass |
 | CI on a clean runner, gating merge | A machine the agent never touches | No |
 
-The lecture's step 3, "Write the Rules in CLAUDE.md", picks the first. That is the one reading where the claim is false, because the agent reads the rule and the agent writes the file, so the owner of the state is also the auditor of it. The page never mentions a hook, a CI job, a pipeline, a pull request, or a merge; the words appear zero times in the lecture source.
+The lecture's step 3, "Write the Rules in CLAUDE.md", picks the first. That is the reading where the claim is false, because the agent reads the rule and the agent writes the file, so the owner of the state is also the auditor of it. The page never mentions a hook, a CI job, a pipeline, a pull request, or a merge. Those words appear zero times in the lecture source.
 
-Four artifacts that would make the claim true, in order of cost:
+Four artifacts would make the claim true, in order of cost:
 
 - A `PreToolUse` hook that denies `Write` and `Edit` on the feature list except through the verifier's own path. Cheap, fires mid-session, matches the lecture's timing.
 - A `Stop` hook that runs the verification command and blocks the turn on a nonzero exit. This enforces "done means a command passed" without naming a file, which is the broader claim.
-- The verifier as a program that owns the file: it runs the row's command, writes `passing` and the evidence itself, and the agent has no write permission on the file at all. This is the closest thing to the lecture's own description and nothing in the course resembles it.
+- The verifier as a program that owns the file. It runs the row's command, writes `passing` and the evidence itself, and the agent has no write permission on the file at all. This is the closest thing to the lecture's own description, and nothing in the course resembles it.
 - CI reading the file on a pull request, which catches everything above it that was bypassed.
 
-A hook is weaker than CI for one reason worth stating plainly: the hook config sits in the same checkout the agent can edit. An agent with a `Bash` tool and default permissions can rewrite or disable its own gate. CI runs on a machine and a branch the agent cannot reach.
+A hook is weaker than CI because the hook config sits in the same checkout the agent can edit. An agent with a `Bash` tool and default permissions can rewrite or disable its own gate. CI runs on a machine and a branch the agent cannot reach.
 
-The cheapest correct version of this lecture is a `Stop` hook plus one CI job, and neither appears on the page.
+The cheapest correct version of this lecture is a `Stop` hook plus one CI job. Neither appears on the page.
 
 ### The state machine has four states and no state field
 
 The page defines `not_started`, `active`, `blocked`, `passing` and says transitions are controlled by the harness. Then its JSON example uses `"state": "passing"`, its code file uses `"passes": false`, and the course template uses `"status": "not_started"`. Three vocabularies, one of them a boolean.
 
-A boolean cannot express `active` or `blocked`, so the two states the argument leans on are unrepresentable in the artifact the argument ships. `active` is the one that matters, because it is what makes "one feature at a time" checkable, and it is the field `project01/strong-harness/` lacks for the same reason.
+A boolean cannot express `active` or `blocked`, so the two states the argument leans on cannot be written into the artifact the argument ships. `active` is the worse loss, because it is what makes "one feature at a time" checkable, and it is the field `project01/strong-harness/` lacks for the same reason.
 
 ### Irreversible passing has no reopen path
 
