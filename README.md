@@ -20,6 +20,7 @@ To serve this repo locally, run `bundle exec jekyll serve` and open <http://127.
 - [`lecture05/`](lecture05/)
 - [`lecture06/`](lecture06/)
 - [`lecture07/`](lecture07/)
+- [`lecture08/`](lecture08/)
 - More lectures to come...
 
 ## Projects
