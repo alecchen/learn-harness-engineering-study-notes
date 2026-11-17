@@ -19,6 +19,7 @@ Notes from [lecture 8](https://walkinglabs.github.io/learn-harness-engineering/e
   - [The Building Effective Agents citation is fabricated in its strongest form](#the-building-effective-agents-citation-is-fabricated-in-its-strongest-form)
   - [The four dependents are the lecture's model attributed to a consensus](#the-four-dependents-are-the-lectures-model-attributed-to-a-consensus)
   - [Pass-state gating is not what the cited source does](#pass-state-gating-is-not-what-the-cited-source-does)
+  - [The harness that gates is named and never built](#the-harness-that-gates-is-named-and-never-built)
   - [The state machine has four states and no state field](#the-state-machine-has-four-states-and-no-state-field)
   - [Irreversible passing has no reopen path](#irreversible-passing-has-no-reopen-path)
   - [The validator injects data it did not read, and cannot fail](#the-validator-injects-data-it-did-not-read-and-cannot-fail)
@@ -155,7 +156,7 @@ The reasons that do hold are about location and cost.
 
 A file in the repo arrives in the same diff as the code that changes it. The status flip and the implementation are one reviewable unit. A Jira ticket is a separate system, so the code review never shows the state change and the ticket never shows the diff. GitHub issues do better than Jira, being at least attached to the repository, but they are still not in the commit.
 
-A file costs no credential. The agent reads it with `cat` and writes it with an edit. The GitHub API needs a token in the environment, and a token in an agent's environment is a secret with a wider blast radius than the repository it was issued for. Jira wants the same plus a network path to a corporate instance.
+A file costs no credential. The agent reads it with `cat` and writes it with an edit. Reading a public repository's issues over the API needs no token but allows 60 requests an hour per address, shared with everything else on that machine, and any write needs one. A token in an agent's environment is a secret that reaches every repository it was scoped for, where a file in the working tree reaches only its own checkout. Jira wants the same credential plus a network path to a corporate instance.
 
 A file shares the code's history. `git log feature_list.json` and `git log src/` are one timeline, so a later reader can see which feature flipped on which day against which code. A tracker keeps a separate history that drifts, and the drift is invisible.
 
@@ -194,6 +195,31 @@ The lecture's central mechanism is that the agent cannot mark a row passing; it 
 The Anthropic article describes the opposite arrangement in its own table. Coding agent behavior: "Self-verify all features. Only mark features as 'passing' after careful testing." The agent marks its own rows after its own testing. The harness contributes the initial file and the instruction to read it, not a gate.
 
 That is a real design difference, and the lecture can prefer its version. What it cannot do is cite the article for it, since the citation is the only evidence on the page that the stronger version works.
+
+### The harness that gates is named and never built
+
+The claim is "State transitions are controlled by the harness. The agent can't change states on its own."
+
+For that sentence to mean anything, "harness" has to be a process that is not the agent. In practice the word covers three different things, and only one of them can refuse an edit:
+
+| Reading of "harness" | Who enforces | Can the agent get past it |
+|---|---|---|
+| Instruction files, conventions, a work-rules block | The agent, by following them | Yes, by ignoring them |
+| A tool or hook the runtime fires: `PreToolUse` on the state file, a `Stop` hook running the check | Code outside the model's reasoning | Yes, with write access to the hook config or a permission bypass |
+| CI on a clean runner, gating merge | A machine the agent never touches | No |
+
+The lecture's step 3, "Write the Rules in CLAUDE.md", picks the first. That is the one reading where the claim is false, because the agent reads the rule and the agent writes the file, so the owner of the state is also the auditor of it. The page never mentions a hook, a CI job, a pipeline, a pull request, or a merge; the words appear zero times in the lecture source.
+
+Four artifacts that would make the claim true, in order of cost:
+
+- A `PreToolUse` hook that denies `Write` and `Edit` on the feature list except through the verifier's own path. Cheap, fires mid-session, matches the lecture's timing.
+- A `Stop` hook that runs the verification command and blocks the turn on a nonzero exit. This enforces "done means a command passed" without naming a file, which is the broader claim.
+- The verifier as a program that owns the file: it runs the row's command, writes `passing` and the evidence itself, and the agent has no write permission on the file at all. This is the closest thing to the lecture's own description and nothing in the course resembles it.
+- CI reading the file on a pull request, which catches everything above it that was bypassed.
+
+A hook is weaker than CI for one reason worth stating plainly: the hook config sits in the same checkout the agent can edit. An agent with a `Bash` tool and default permissions can rewrite or disable its own gate. CI runs on a machine and a branch the agent cannot reach.
+
+The cheapest correct version of this lecture is a `Stop` hook plus one CI job, and neither appears on the page.
 
 ### The state machine has four states and no state field
 
